@@ -206,8 +206,10 @@ class Planetarium(Framework):
         #check all buttons
         for button in self.buttons:
             if isinstance(button, ZoomButton):
-                self.shift += button.onClick(x,y)
-                self.updateScreenPos() #shift changed
+                val = button.onClick(x,y)
+                self.shift += val
+                if val!=0: self.updateScreenPos()
+                
             elif isinstance(button, DirButton):
                 (x,y) = self.screenPos
                 val = button.onClick(x,y)
