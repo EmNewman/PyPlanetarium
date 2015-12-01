@@ -56,6 +56,14 @@ class Star(object):
         (x,y) = self.screenPos
         return (int(x - left), int(y - up))
 
+class Line(object):
+    def __init__(self, startStar, screenPos):
+        self.star1 = startStar
+        (self.dispX1, self.dispY1) = self.star1.displayPos(left, up)
+        (self.x1, self.y1) = self.star1.screenPos
+
+    def setEnd(self, star):
+        self.star2 = star
 
 class Button(object):
     def __init__(self, name, x, y, color, width=25, height=15):
@@ -153,7 +161,8 @@ class ModeButton(Button):
     def onClick(self, x, y):
         if pointInBox((x,y), (self.x, self.y, self.x+self.width, 
                                             self.y+self.height)):
-            return name
+            return self.name
+        return None
 
 
 class Planetarium(Framework):
@@ -197,6 +206,11 @@ class Planetarium(Framework):
         self.showStarInfo = True
         self.inRealTime = False
         self.mode = "main"
+
+        #draw mode initializing
+        self.onLine = False
+        self.drawModeButtons = [ ]
+        self.lines = [ ]
 
     def initStars(self):
         for star in ephem.stars.db.split("\n"):
@@ -250,22 +264,41 @@ class Planetarium(Framework):
                     sy = val
                 self.updateScreenPos(0, sx, sy)
                 if sx !=0 or sy!=0: return
+            elif isinstance(button, ModeButton):
+                name = button.onClick(x, y)
+                if name != None: self.mode = name
 
         #toggles info
         for star in self.starList:
-            if star.displayPos(left,up) == None: continue
+            if star.displayPos(left,up) == None: continue #not on screen
             (cx, cy) = star.displayPos(left,up)
             (width, height) = self.font.size(star.name)
-            if (pointInCircle((x,y), (cx, cy), star.r)
-                or pointInBox((x,y), (cx, cy, cx+width, cy+height))):
-                star.changeInfo()
-                return #ensures only one star info shown
+            if self.mode == "main":
+                if (pointInCircle((x,y), (cx, cy), star.r)
+                    or pointInBox((x,y), (cx, cy, cx+width, cy+height))):
+                    star.changeInfo()
+                    return #ensures only one star info shown
+            elif self.mode == "draw":
+                if (pointInCircle((x,y), (cx, cy), star.r)
+                    or pointInBox((x,y), (cx, cy, cx+width, cy+height))):
+                        if not self.onLine:
+                            self.lines.append(Line(star, self.screenPos))
+                        else: 
+                            self.lines[-1].setEnd(star)
+                else: #clicked on point not in box
+                    if self.onLine: 
+                        self.lines.pop()
+                        self.onLine = False
 
     def mouseReleased(self, x, y):
         pass
 
     def mouseMotion(self, x, y):
-        pass
+        if self.onLine:
+            #shows line drawing in real time
+            self.lines[-1].x2 = x
+            self.lines[-1].y2 = y
+
 
     def mouseDrag(self, x, y):
         pass
