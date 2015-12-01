@@ -25,6 +25,7 @@ def pointInCircle(point, circlePos, r):
     (cx, cy) = circlePos
     return (x-cx)**2 + (y-cy)**2 <= r**2
 
+
 class Star(object):
     def __init__(self, name, body):
         self.name = name
@@ -134,7 +135,25 @@ class DirButton(Button):
     def draw(self, screen, font):   
         super(DirButton, self).draw(screen, font)
         text=font.render(self.char, 1, self.BLACK)
-        screen.blit(text, (self.x, self.y))     
+        screen.blit(text, (self.x, self.y))
+
+class ModeButton(Button):
+    def __init__(self, name, x, y, color, width=25, height=15):
+        super(ModeButton, self).__init__(name, x, y, color, width, height)
+
+             
+    def draw(self, screen, font): 
+        word = self.name[0].upper() + self.name[1:]
+        (self.width, self.height) = font.size(word)  
+        super(ModeButton, self).draw(screen, font)
+        (self.width, self.height) = font.size(word)
+        text = font.render(word, 1, self.BLACK)
+        screen.blit(text, (self.x, self.y))
+
+    def onClick(self, x, y):
+        if pointInBox((x,y), (self.x, self.y, self.x+self.width, 
+                                            self.y+self.height)):
+            return name
 
 
 class Planetarium(Framework):
@@ -142,7 +161,7 @@ class Planetarium(Framework):
         super(Planetarium, self).__init__()
         self.title = "PGH Planetarium"
         self.bgColor = self.BLACK
-        self.shift = 400 #changes with zooming?
+        self.shift = 200 #changes with zooming?
         #full screen width and height
         self.fullWidth = self.shift*2
         self.fullHeight = self.shift*2
@@ -152,26 +171,32 @@ class Planetarium(Framework):
         (self.MIN_AZ, self.MAX_AZ) = (0, 2*math.pi) #radians
         # upper left corner of screen in terms of sky
         # starts w/ center of screen being (0,0) of sky
-        self.screenPos = (self.shift-self.width//2, self.shift-self.height//2)
+        self.screenPos = (0,0)
         self.date = datetime.datetime.now() #always Datetime form
         self.starList = [ ]
         self.initPittsburgh()
         self.initStars()
         self.zoomColor = (114, 164, 255) #light blue
-        self.buttons = [ ZoomButton("zoomIn", 0, 0, self.zoomColor),
-                        ZoomButton("zoomOut", 25, 0, self.zoomColor),
-                        DirButton("up", self.width-50, self.height-50,
-                                                        self.zoomColor),
-                        DirButton("down", self.width-50, self.height-20,
-                                                        self.zoomColor),
-                        DirButton("left", self.width-75, self.height-35,
-                                                        self.zoomColor),
-                        DirButton("right", self.width-35, self.height-35,
-                                                        self.zoomColor) 
+        self.buttons = [ 
+                ZoomButton("zoomIn", 0, 0, self.zoomColor),
+                ZoomButton("zoomOut", 25, 0, self.zoomColor),
+                DirButton("up", self.width-50, self.height-50,
+                                                self.zoomColor),
+                DirButton("down", self.width-50, self.height-20,
+                                                self.zoomColor),
+                DirButton("left", self.width-75, self.height-35,
+                                                self.zoomColor),
+                DirButton("right", self.width-25, self.height-35,
+                                                self.zoomColor) ,
+                ModeButton("draw", self.width-self.font.size("draw")[0], 0, 
+                                                self.zoomColor),
+                ModeButton("options",self.width-self.font.size("draw")[0] 
+                            -self.font.size("options")[0]-10, 0, self.zoomColor)
                         ]
 
         self.showStarInfo = True
         self.inRealTime = False
+        self.mode = "main"
 
     def initStars(self):
         for star in ephem.stars.db.split("\n"):
@@ -188,7 +213,7 @@ class Planetarium(Framework):
 
     def calculateStars(self):
         for star in self.starList:
-            star.calculate(self.shift)
+            star.calculate(self.pgh, self.shift)
 
 
 
@@ -196,8 +221,13 @@ class Planetarium(Framework):
     def init(self):
         pass
 
-    def updateScreenPos(self):
-        self.screenPos = (self.shift-self.width//2, self.shift-self.height//2)
+    def updateScreenPos(self, shift, x=0, y=0):
+        (oldX, oldY) = self.screenPos
+        if shift == 0:
+            self.screenPos = (x+oldX, y+oldY)
+        else:
+            self.shift += shift
+            self.screenPos = (oldX+shift, oldY+shift)
 
 
     def mousePressed(self, x, y):
@@ -207,25 +237,25 @@ class Planetarium(Framework):
         for button in self.buttons:
             if isinstance(button, ZoomButton):
                 val = button.onClick(x,y)
-                self.shift += val
-                if val!=0: self.updateScreenPos()
-                
+                if self.shift+val < 0 or self.shift+val > 1000: continue
+                elif val != 0: 
+                    self.updateScreenPos(val)
+                    return
             elif isinstance(button, DirButton):
-                (x,y) = self.screenPos
                 val = button.onClick(x,y)
+                (sx,sy) = (0,0)
                 if button.name == "left" or button.name == "right":
-                    x += val
+                    sx = val
                 else:
-                    y += val
-                self.screenPos = (x,y)
-
+                    sy = val
+                self.updateScreenPos(0, sx, sy)
+                if sx !=0 or sy!=0: return
 
         #toggles info
         for star in self.starList:
             if star.displayPos(left,up) == None: continue
             (cx, cy) = star.displayPos(left,up)
-            width = self.fontSize * len(star.name) *2/3 #approx. width of name
-            height = self.fontSize
+            (width, height) = self.font.size(star.name)
             if (pointInCircle((x,y), (cx, cy), star.r)
                 or pointInBox((x,y), (cx, cy, cx+width, cy+height))):
                 star.changeInfo()
@@ -271,7 +301,10 @@ class Planetarium(Framework):
 
     def drawButtons(self, screen):
         for button in self.buttons:
-            button.draw(screen, self.bigFont)
+            if isinstance(button, ModeButton):
+                button.draw(screen, self.font)
+            else:
+                button.draw(screen, self.bigFont)
 
     def drawStars(self, screen):
         for star in self.starList:
