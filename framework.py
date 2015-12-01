@@ -63,6 +63,7 @@ class Framework(object):
         self.fontSize = 12
         pygame.init()
         self.font = pygame.font.SysFont("monospace", self.fontSize)
+        self.bigFont = pygame.font.SysFont("monospace", 25)
 
 
     def run(self):

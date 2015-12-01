@@ -64,17 +64,77 @@ class Button(object):
         self.y = y
         self.width = width
         self.height = height
+        self.BLACK = (0, 0, 0)
         self.color = color
 
-    def isClickedOn(self, x, y):
+    def onClick(self, x, y):
         return pointInBox((x,y), (self.x, self.y, 
                                 self.x+self.width, self.y+self.height))
+        
 
-    def draw(self, screen):
-        pygame.draw.rect(screen, self.color, pygame.Rect(self.x, self.y, 
+    def draw(self, screen, font):
+        #todo use images instead of pygame drawing?
+        pygame.draw.rect(screen, self.BLACK, pygame.Rect(self.x, self.y, 
                                             self.width, self.height), 1)
+        screen.fill(self.color, pygame.Rect(self.x, self.y, 
+                                            self.width, self.height))
 
 
+
+class ZoomButton(Button):
+    def __init__(self, name, x, y, color, width=25, height=15):
+        super(ZoomButton, self).__init__(name, x, y, color, width, height)
+        self.dir = 0
+        self.char = ""
+        if self.name == "zoomIn":
+            self.dir=1
+            self.char="+"
+        elif self.name=="zoomOut":
+            self.dir=-1
+            self.char="-"
+        self.zoom=10
+
+    def onClick(self, x, y):
+        if pointInBox((x,y), (self.x, self.y, self.x+self.width, 
+                                            self.y+self.height)):
+            return self.dir*self.zoom
+        else:
+            return 0 #no change to shift
+
+    def draw(self, screen, font):
+        super(ZoomButton, self).draw(screen, font)
+        text=font.render(self.char, 1, self.BLACK)
+        screen.blit(text, (self.x, self.y))
+
+class DirButton(Button):
+    def __init__(self, name, x, y, color, width=25, height=15):
+        super(DirButton, self).__init__(name, x, y, color, width, height)
+        self.dirX = 0
+        self.dirY = 0
+        self.d = 10
+        if self.name == "left":
+            self.dirX = -1
+            self.char = "<"
+        elif self.name == "right":
+            self.dirX = 1
+            self.char = ">"
+        elif self.name == "up":
+            self.dirY = -1
+            self.char = "^"
+        elif self.name == "down":
+            self.dirY = 1
+            self.char = "v"
+
+    def onClick(self, x, y):
+        if pointInBox((x,y), (self.x, self.y, self.x+self.width, 
+                                            self.y+self.height)):
+            return self.dirX*self.d if self.dirX != 0 else self.dirY*self.d
+        return 0
+
+    def draw(self, screen, font):   
+        super(DirButton, self).draw(screen, font)
+        text=font.render(self.char, 1, self.BLACK)
+        screen.blit(text, (self.x, self.y))     
 
 
 class Planetarium(Framework):
@@ -98,9 +158,18 @@ class Planetarium(Framework):
         self.initPittsburgh()
         self.initStars()
         self.zoomColor = (114, 164, 255) #light blue
-        self.buttons = { "zoomIn": Button("zoomIn", 0, 0, self.zoomColor),
-                        "zoomOut": Button("zoomOut", 25, 0, self.zoomColor)
-                        }
+        self.buttons = [ ZoomButton("zoomIn", 0, 0, self.zoomColor),
+                        ZoomButton("zoomOut", 25, 0, self.zoomColor),
+                        DirButton("up", self.width-50, self.height-50,
+                                                        self.zoomColor),
+                        DirButton("down", self.width-50, self.height-20,
+                                                        self.zoomColor),
+                        DirButton("left", self.width-75, self.height-35,
+                                                        self.zoomColor),
+                        DirButton("right", self.width-35, self.height-35,
+                                                        self.zoomColor) 
+                        ]
+
         self.showStarInfo = True
         self.inRealTime = False
 
@@ -127,11 +196,28 @@ class Planetarium(Framework):
     def init(self):
         pass
 
+    def updateScreenPos(self):
+        self.screenPos = (self.shift-self.width//2, self.shift-self.height//2)
 
 
     def mousePressed(self, x, y):
         (left, up) = self.screenPos
         #In main screen:
+        #check all buttons
+        for button in self.buttons:
+            if isinstance(button, ZoomButton):
+                self.shift += button.onClick(x,y)
+                self.updateScreenPos() #shift changed
+            elif isinstance(button, DirButton):
+                (x,y) = self.screenPos
+                val = button.onClick(x,y)
+                if button.name == "left" or button.name == "right":
+                    x += val
+                else:
+                    y += val
+                self.screenPos = (x,y)
+
+
         #toggles info
         for star in self.starList:
             if star.displayPos(left,up) == None: continue
@@ -142,10 +228,6 @@ class Planetarium(Framework):
                 or pointInBox((x,y), (cx, cy, cx+width, cy+height))):
                 star.changeInfo()
                 return #ensures only one star info shown
-        #zoom in button
-
-        #zoom out button
-
 
     def mouseReleased(self, x, y):
         pass
@@ -187,7 +269,7 @@ class Planetarium(Framework):
 
     def drawButtons(self, screen):
         for button in self.buttons:
-            self.buttons[button].draw(screen)
+            button.draw(screen, self.bigFont)
 
     def drawStars(self, screen):
         for star in self.starList:
