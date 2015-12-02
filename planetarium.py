@@ -278,7 +278,16 @@ class ToggleButton(Button):
 
 class DrawButton(Button):
     def draw(self, screen, font):
-        pass
+        super(DrawButton, self).draw(screen, font)
+        word = self.name[0].upper() + self.name[1:]
+        text = font.render(word, 1, self.BLACK)
+        screen.blit(text, (self.x, self.y))
+
+    def onClick(self, x, y):
+        if pointInBox((x,y), (self.x, self.y, self.x+self.width, 
+                                            self.y+self.height)):
+            return self
+
 
 class Planetarium(Framework):
     def __init__(self, width=600, height=400, fps=50, title="PGH Planetarium"):
@@ -355,11 +364,18 @@ class Planetarium(Framework):
 
 
     def initDrawMode(self):
+        size = self.height//7
         self.drawModeButtons = [ 
-                                DrawButton("undo", 0, 3, self.GREEN2),
-                                DrawButton("redo", 0, 3, self.GREEN2),
-                                DrawButton("save", 0, 3, self.GREEN2),
-                                DrawButton("clear", 0, 3, self.GREEN2)
+                                DrawButton("erase", 0, self.height*2//7, 
+                                                    self.GREEN2, size, size)
+                                DrawButton("undo", 0, self.height*3//7, 
+                                                    self.GREEN2, size, size),
+                                DrawButton("redo", 0, self.height*4//7, 
+                                                    self.GREEN2, size, size),
+                                DrawButton("save", 0, self.height*5//7, 
+                                                    self.GREEN2, size, size),
+                                DrawButton("clear", self.height*6//7, 3, 
+                                                    self.GREEN2, size, size)
                                 ]
         self.onLine = False
         self.lines = [ ]
