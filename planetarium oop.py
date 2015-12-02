@@ -214,7 +214,7 @@ class TimeButton(Button):
         else: #hour, minute
             self.maxTime = 59
         self.timeVal = 0
-        self.selected = False
+        self.YELLOW = (255, 255, 0)
 
     def timeUp(self):
         if self.minTime <= self.timeVal+1 <= self.maxTime:
@@ -233,9 +233,7 @@ class TimeButton(Button):
     def onClick(self, x, y):
         if pointInBox((x,y), (self.x, self.y, self.x+self.width, 
                                             self.y+self.height)):
-            self.selected = True
             return self
-
     def draw(self, screen, font):
         super(TimeButton, self).draw(screen, font)
         text = font.render(str(self.timeVal), 1, self.BLACK)
@@ -305,6 +303,7 @@ class Planetarium(Framework):
         self.RED = (208, 9, 9)
         self.GREEN2 = (0, 204, 0)
         self.PINK = (255, 102, 255)
+        self.YELLOW = (255, 255, 0)
         self.buttons = [ 
                 ZoomButton("zoomIn", 0, 0, self.LIGHT_BLUE),
                 ZoomButton("zoomOut", 25, 0, self.LIGHT_BLUE),
@@ -336,11 +335,15 @@ class Planetarium(Framework):
             ModeButton("quit", self.width//2-self.font.size("Quit")[0]//2,
                             self.height*7//8, self.RED )
         ]
+        self.selectedTimeButton = None
 
         self.inRealTime = False
         self.mode = "main"
         #draw mode initializing
         self.initDrawMode()
+        self.updateOptionButtons()
+
+
 
     def initDrawMode(self):
         self.drawModeButtons = [ ]
@@ -392,16 +395,18 @@ class Planetarium(Framework):
 
         #In main screen:
         #check all buttons
-        self.checkButtons(x, y)
 
-        #check all stars
-        self.checkStars(x, y)
+        else:
+            self.checkButtons(x, y)
 
-        if self.mode == "draw" and self.onLine: 
-            print "removing line"
-            self.lines.pop()
-            self.onLine = False
-            return
+            #check all stars
+            self.checkStars(x, y)
+
+            if self.mode == "draw" and self.onLine: 
+                print "removing line"
+                self.lines.pop()
+                self.onLine = False
+                return
 
 
     def optionsMousePressed(self, x, y):
@@ -410,8 +415,33 @@ class Planetarium(Framework):
             val = button.onClick(x, y)
             if button.name == "realtime":
                 self.inRealTime = val
-            elif isinstance(button, ModeButton):
+            elif isinstance(button, NowButton):
+                self.date = val
+            elif button.name == "return":
                 self.mode = val
+                print self.mode
+            else: #is a timebutton
+                self.selectedTimeButton = val
+                
+
+    def updateDate(self):
+        yr = self.date.year
+        mon = self.date.month
+        day = self.date.day
+        hr = self.date.hour
+        mi = self.date.minute
+        for button in self.optionsButtons:
+            if button.name == "year":
+                yr = button.getTime()
+            elif button.name == "month":
+                mon = button.getTime()
+            elif button.name == "day":
+                day = button.getTime()
+            elif button.name == "hour":
+                hr = button.getTime()
+            elif button.name == "minute":
+                mi = button.getTime()
+        self.date = self.date.replace(yr, mon, day, hr, mi)
 
 
     def checkStars(self, x, y):
@@ -462,6 +492,15 @@ class Planetarium(Framework):
                 name = button.onClick(x, y)
                 if name != None: self.mode = name
 
+
+    def resetTimeButtonColors(self):
+        for button in self.optionsButtons:
+            if isinstance(button, TimeButton):
+                button.color = self.WHITE
+
+        if self.selectedTimeButton != None:
+            self.selectedTimeButton.color = self.YELLOW
+
     def mouseReleased(self, x, y):
         pass
 
@@ -470,12 +509,16 @@ class Planetarium(Framework):
             #shows line drawing in real time
             self.lines[-1].updateEndPoint(x, y)
 
-
     def mouseDrag(self, x, y):
         pass
 
     def keyPressed(self, keyCode, modifier):
-        pass
+        if self.mode == "options":
+            if keyCode == "K_UP":
+                self.selectedTimeButton.timeUp()
+            elif keycode == "K_DOWN":
+                self.selectedTimeButton.timeDown()
+
 
     def keyReleased(self, keyCode, modifier):
         pass
@@ -485,7 +528,17 @@ class Planetarium(Framework):
             pygame.quit()
         if self.inRealTime == True:
             self.date = datetime.datetime.now()
-        self.updateOptionButtons()
+            self.updateOptionButtons()
+        else: #is not in real time
+            while self.isKeyPressed("K_UP"):
+                if self.selectedTimeButton != None:
+                    self.selectedTimeButton.timeUp()
+            while self.isKeyPressed("K_DOWN"):
+                if self.selectedTimeButton != None:
+                    self.selectedTimeButton.timeDown()
+            if self.selectedTimeButton != None:
+                self.updateDate()     
+
 
         # else: #for testing
         #     newMinute = self.date.minute+1
@@ -593,7 +646,6 @@ class Planetarium(Framework):
         const = self.font.render("Constellation: " +
                         ephem.constellation(starObj)[1], 1, self.WHITE)
         screen.blit(const, (x, y+4*self.fontSize+2))
-
 
 
     def isKeyPressed(self, key):
