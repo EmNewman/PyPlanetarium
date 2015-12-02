@@ -276,6 +276,9 @@ class ToggleButton(Button):
         text = font.render(word, 1, self.BLACK)
         screen.blit(text, (self.x, self.y))
 
+class DrawButton(Button):
+    def draw(self, screen, font):
+        pass
 
 class Planetarium(Framework):
     def __init__(self, width=600, height=400, fps=50, title="PGH Planetarium"):
@@ -352,7 +355,12 @@ class Planetarium(Framework):
 
 
     def initDrawMode(self):
-        self.drawModeButtons = [ ]
+        self.drawModeButtons = [ 
+                                DrawButton("undo", 0, 3, self.GREEN2),
+                                DrawButton("redo", 0, 3, self.GREEN2),
+                                DrawButton("save", 0, 3, self.GREEN2),
+                                DrawButton("clear", 0, 3, self.GREEN2)
+                                ]
         self.onLine = False
         self.lines = [ ]
 
