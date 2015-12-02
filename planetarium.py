@@ -464,7 +464,8 @@ class Planetarium(Framework):
             self.selectedDrawButton = button
             if button.name == "undo":
                 if self.lastAction == "draw":
-                    self.undidLines.append(self.lines.pop())
+                    if self.lines != [ ]:
+                        self.undidLines.append(self.lines.pop())
                     print self.undidLines
                     print self.lines
                 elif self.lastAction == "erase":
@@ -482,7 +483,8 @@ class Planetarium(Framework):
                     print self.undidLines
                     print self.lines
                 elif self.lastAction == "erase":
-                    self.erasedLines.append(self.lines.pop())
+                    if self.lines != [ ]:
+                        self.erasedLines.append(self.lines.pop())
                     print self.erasedLines
                     print self.lines
                 elif self.lastAction == "clear":
