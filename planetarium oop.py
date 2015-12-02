@@ -77,8 +77,7 @@ class Line(object):
         (left, up) = ref
         self.star2 = star
         (self.x2, self.y2) = self.star2.screenPos
-        (self.dispX2, self.dispY2) = self.star2.displayPos
-
+        (self.dispX2, self.dispY2) = self.star2.displayPos(left, up)
 
     def updateEndPoint(self, x, y):
         #only used temporarily for aesthetic purposes
@@ -88,14 +87,13 @@ class Line(object):
     def displayPoints(self, ref):
         (left, up) = ref
         if self.star2 == None:
-            return (self.star1.displayPos(left,up), (self.x2, self.y2))
+            return (self.star1.displayPos(left,up), (self.dispX2, self.dispY2))
         else:
-            return (self.star1.displayPos, self.star2.displayPos)
+            return (self.star1.displayPos(left, up), 
+                    self.star2.displayPos(left, up))
 
     def draw(self, screen, ref):
         (start, end) = self.displayPoints(ref)
-        start = list(start)
-        end = list(end)
         pygame.draw.line(screen, self.color, start, end, 2)
 
 
@@ -199,13 +197,93 @@ class ModeButton(Button):
             return self.name
         return None
 
+class TimeButton(Button):
+    def __init__(self, name, x, y, color, width=25, height=15):
+        super(TimeButton, self).__init__(name, x, y, color, width, height)
+        #set max time val
+        self.minTime = 0
+        if self.name == "year":
+            self.minTime = 100
+            self.maxTime = 3000
+        elif self.name == "month":
+            self.minTime = 1
+            self.maxTime = 12
+        elif self.name == "day":
+            self.minTime = 1
+            self.maxTime = 31 #to be controlled in Planetarium
+        else: #hour, minute
+            self.maxTime = 59
+        self.timeVal = 0
+        self.selected = False
+
+    def timeUp(self):
+        if self.minTime <= self.timeVal+1 <= self.maxTime:
+            self.timeVal += 1
+
+    def timeDown(self):
+        if self.minTime <= self.timeVal-1 <= self.maxTime:
+            self.timeVal -= 1
+
+    def getTime(self):
+        return self.timeVal
+
+    def setTimeVal(self, val):
+        self.timeVal = val
+
+    def onClick(self, x, y):
+        if pointInBox((x,y), (self.x, self.y, self.x+self.width, 
+                                            self.y+self.height)):
+            self.selected = True
+            return self
+
+    def draw(self, screen, font):
+        super(TimeButton, self).draw(screen, font)
+        text = font.render(str(self.timeVal), 1, self.BLACK)
+        screen.blit(text, (self.x, self.y))
+
+
+class NowButton(Button):
+    def draw(self, screen, font):
+        word = self.name[0].upper() + self.name[1:]
+        super(NowButton, self).draw(screen, font)
+        text = font.render(word, 1, self.BLACK)
+        screen.blit(text, (self.x, self.y))
+
+    def onClick(self, x, y):
+        if pointInBox((x,y), (self.x, self.y, self.x+self.width, 
+                                            self.y+self.height)):
+            return datetime.datetime.now()
+
+class ToggleButton(Button):
+    def __init__(self, name, x, y, color, width=25, height=15):
+        super(ToggleButton, self).__init__(name, x, y, color, width, height)
+        self.toggle = False
+        self.offColor = color #red
+        self.onColor = (0, 204, 0) #green
+
+    def onClick(self, x, y):
+        if pointInBox((x,y), (self.x, self.y, self.x+self.width, 
+                                            self.y+self.height)):
+            self.toggle = not self.toggle
+            return self.toggle
+    def draw(self, screen, font):
+        if self.toggle:
+            word = "ON"
+            self.color = self.onColor
+        else:
+            word = "OFF"
+            self.color = self.offColor
+        super(ToggleButton, self).draw(screen, font)
+        text = font.render(word, 1, self.BLACK)
+        screen.blit(text, (self.x, self.y))
+
 
 class Planetarium(Framework):
     def __init__(self, width=600, height=400, fps=50, title="PGH Planetarium"):
         super(Planetarium, self).__init__()
         self.title = "PGH Planetarium"
         self.bgColor = self.BLACK
-        self.shift = 500 #changes with zooming?
+        self.shift = 1000 #changes with zooming?
         #full screen width and height
         self.fullWidth = self.shift*2
         self.fullHeight = self.shift*2
@@ -215,38 +293,58 @@ class Planetarium(Framework):
         (self.MIN_AZ, self.MAX_AZ) = (0, 2*math.pi) #radians
         # upper left corner of screen in terms of sky
         # starts w/ center of screen being (0,0) of sky
-        self.screenPos = (0,0)
+        self.screenPos = (self.fullWidth//2, self.fullHeight//2)
         self.date = datetime.datetime.now() #always Datetime form
         self.starList = [ ]
         self.initPittsburgh()
         self.initStars()
         #read in more stars!
         yaleCatalog = self.readInDB("ybs.edb")
-        self.starList += yaleCatalog
-        self.zoomColor = (114, 164, 255) #light blue
+        self.starList += yaleCatalog #using Yale's Bright Star catalog
+        self.LIGHT_BLUE = (114, 164, 255) 
+        self.RED = (208, 9, 9)
+        self.GREEN2 = (0, 204, 0)
+        self.PINK = (255, 102, 255)
         self.buttons = [ 
-                ZoomButton("zoomIn", 0, 0, self.zoomColor),
-                ZoomButton("zoomOut", 25, 0, self.zoomColor),
+                ZoomButton("zoomIn", 0, 0, self.LIGHT_BLUE),
+                ZoomButton("zoomOut", 25, 0, self.LIGHT_BLUE),
                 DirButton("up", self.width-50, self.height-50,
-                                                self.zoomColor),
+                                                self.LIGHT_BLUE),
                 DirButton("down", self.width-50, self.height-20,
-                                                self.zoomColor),
+                                                self.LIGHT_BLUE),
                 DirButton("left", self.width-75, self.height-35,
-                                                self.zoomColor),
+                                                self.LIGHT_BLUE),
                 DirButton("right", self.width-25, self.height-35,
-                                                self.zoomColor) ,
+                                                self.LIGHT_BLUE) ,
                 ModeButton("draw", self.width-self.font.size("draw")[0], 0, 
-                                                self.zoomColor),
+                                                self.LIGHT_BLUE),
                 ModeButton("options",self.width-self.font.size("draw")[0] 
-                            -self.font.size("options")[0]-10, 0, self.zoomColor)
+                        -self.font.size("options")[0]-10, 0, self.LIGHT_BLUE)
                         ]
+        #splitting the screen into 9ths width wise, 8ths height wise
+        self.optionsButtons = [ 
+            TimeButton("year", self.width*3//9, self.height*3//8, self.WHITE),
+            TimeButton("month", self.width*4//9, self.height*3//8, self.WHITE),
+            TimeButton("day", self.width*5//9, self.height*3//8, self.WHITE),
+            TimeButton("hour", self.width*6//9, self.height*3//8, self.WHITE),
+            TimeButton("minute", self.width*7//9, self.height*3//8, self.WHITE),
+            NowButton("now", self.width*8//9, self.height*3//8, self.PINK),
+            ToggleButton("realtime", self.width//2-self.font.size("OFF")[0]//2, 
+                                        self.height*5//8, self.RED),
+            ModeButton("return", self.width//2-self.font.size("Return")[0]//2, 
+                                    self.height*6//8, self.GREEN2),
+            ModeButton("quit", self.width//2-self.font.size("Quit")[0]//2,
+                            self.height*7//8, self.RED )
+        ]
 
         self.inRealTime = False
         self.mode = "main"
-
         #draw mode initializing
-        self.onLine = False
+        self.initDrawMode()
+
+    def initDrawMode(self):
         self.drawModeButtons = [ ]
+        self.onLine = False
         self.lines = [ ]
 
     def initStars(self):
@@ -266,10 +364,7 @@ class Planetarium(Framework):
         #returns list of Star objects from all stars in DB
         db = readFile(path)
         starList = [ ] 
-        count = 1
         for line in db.splitlines():
-            print count
-            count+=1
             if line.startswith("#") or line == "": continue
             line = line.strip()
             body = ephem.readdb(line)
@@ -291,17 +386,62 @@ class Planetarium(Framework):
 
 
     def mousePressed(self, x, y):
-        (left, up) = self.screenPos
         #Options screen:
         if self.mode == "options":
-            pass
-
-
-
-
+            self.optionsMousePressed(x, y)
 
         #In main screen:
         #check all buttons
+        self.checkButtons(x, y)
+
+        #check all stars
+        self.checkStars(x, y)
+
+        if self.mode == "draw" and self.onLine: 
+            print "removing line"
+            self.lines.pop()
+            self.onLine = False
+            return
+
+
+    def optionsMousePressed(self, x, y):
+        (left, up) = self.screenPos
+        for button in self.optionsButtons:
+            val = button.onClick(x, y)
+            if button.name == "realtime":
+                self.inRealTime = val
+            elif isinstance(button, ModeButton):
+                self.mode = val
+
+
+    def checkStars(self, x, y):
+        (left, up) = self.screenPos
+        for star in self.starList:
+            if star.displayPos(left,up) == None: continue #not on screen
+            (cx, cy) = star.displayPos(left,up)
+            (width, height) = self.font.size(star.name)
+            if self.mode == "main":
+                if (pointInCircle((x,y), (cx, cy), star.r)
+                    or pointInBox((x,y), (cx, cy, cx+width, cy+height))):
+                    star.changeInfo()
+                    return #ensures only one star info shown
+            elif self.mode == "draw":
+                if (pointInCircle((x,y), (cx, cy), star.r)
+                        or pointInBox((x,y), (cx, cy, cx+width, cy+height))):
+                    if self.onLine == False:
+                        self.lines.append(Line(star, self.screenPos))
+                        # print "appended line"
+                        # print len(self.lines)
+                        self.onLine = True
+                        return
+                    else: #is on a line
+                        # print "setting end"
+                        self.lines[-1].setEnd(star, self.screenPos)
+                        self.onLine = False
+                        return
+
+    def checkButtons(self, x, y):
+        (left, up) = self.screenPos
         for button in self.buttons:
             if isinstance(button, ZoomButton):
                 val = button.onClick(x,y)
@@ -322,35 +462,6 @@ class Planetarium(Framework):
                 name = button.onClick(x, y)
                 if name != None: self.mode = name
 
-        #toggles info
-        for star in self.starList:
-            if star.displayPos(left,up) == None: continue #not on screen
-            (cx, cy) = star.displayPos(left,up)
-            (width, height) = self.font.size(star.name)
-            if self.mode == "main":
-                if (pointInCircle((x,y), (cx, cy), star.r)
-                    or pointInBox((x,y), (cx, cy, cx+width, cy+height))):
-                    star.changeInfo()
-                    return #ensures only one star info shown
-            elif self.mode == "draw":
-                if (pointInCircle((x,y), (cx, cy), star.r)
-                        or pointInBox((x,y), (cx, cy, cx+width, cy+height))):
-                    if self.onLine == False:
-                        self.lines.append(Line(star, self.screenPos))
-                        print "appended line"
-                        self.onLine = True
-                        return
-                    else: #self.onLine = True
-                        self.lines[-1].setEnd(star, self.screenPos)
-                        self.onLine = False
-                        return
-                else: #clicked on point not a star
-                    if self.onLine: 
-                        self.lines.pop()
-                        self.onLine = False
-                        return
-
-
     def mouseReleased(self, x, y):
         pass
 
@@ -370,23 +481,39 @@ class Planetarium(Framework):
         pass
 
     def timerFired(self, dt):
-        self.inRealTime = True
+        if self.mode == "quit":
+            pygame.quit()
         if self.inRealTime == True:
             self.date = datetime.datetime.now()
-        else: #for testing
-            newMinute = self.date.minute+1
-            newHour = self.date.hour
-            if self.date.minute+1 >= 60: 
-                newMinute = (self.date.minute+1)%60
-                newHour = self.date.hour+1
-            self.date = self.date.replace(self.date.year, self.date.month, 
-                                    self.date.day, newHour%24, newMinute)
-        self.updatePgh()
+        self.updateOptionButtons()
+
+        # else: #for testing
+        #     newMinute = self.date.minute+1
+        #     newHour = self.date.hour
+        #     if self.date.minute+1 >= 60: 
+        #         newMinute = (self.date.minute+1)%60
+        #         newHour = self.date.hour+1
+        #     self.date = self.date.replace(self.date.year, self.date.month, 
+        #                             self.date.day, newHour%24, newMinute)
+        # self.updatePgh()
         #self.calculateStars()
 
     def updatePgh(self):
         self.pgh.date = ephem.Date(self.date)
         # self.pgh.epoch = self.pgh.date
+
+    def updateOptionButtons(self):
+        for button in self.optionsButtons:
+            if button.name == "year":
+                button.setTimeVal(self.date.year)
+            elif button.name == "month":
+                button.setTimeVal(self.date.month)
+            elif button.name == "day":
+                button.setTimeVal(self.date.day)
+            elif button.name == "hour":
+                button.setTimeVal(self.date.hour)
+            elif button.name == "minute":
+                button.setTimeVal(self.date.minute)
 
     def redrawAll(self, screen):
         if self.mode == "options":
@@ -398,8 +525,28 @@ class Planetarium(Framework):
                 self.drawLines(screen)
 
     def drawOptions(self, screen):
-        pass
+        word = "OPTIONS"
+        (fx, fy) = self.font.size("OPTIONS")
+        x = self.width//2-fx//2
+        y = self.height*1//8
+        self.drawText(screen, word, x, y, self.font, self.WHITE)
 
+        word = "Date:"
+        x = self.width*2//9
+        y = self.height*3//8
+        self.drawText(screen, word, x, y, self.font, self.WHITE)
+
+        word = "Stars move in real time:"
+        x = self.width*1//9
+        y = self.height*5//8
+        self.drawText(screen, word, x, y, self.font, self.WHITE)
+
+        for button in self.optionsButtons:
+            button.draw(screen, self.font)
+
+    def drawText(self, screen, word, x, y, font, color):
+        text = font.render(word, 1, color)
+        screen.blit(text, (x, y))
 
     def drawLines(self, screen):
         for line in self.lines:
@@ -429,7 +576,7 @@ class Planetarium(Framework):
                     if star.showInfo:
                         self.drawStarInfo(star, screen, pos)
 
-        #print count
+
     def drawStarInfo(self, star, screen, pos):
         (x, y) = pos
         starObj = star.body

@@ -101,7 +101,7 @@ class Framework(object):
                     self._keys[event.key] = False
                     self.keyReleased(event.key, event.mod)
                 elif event.type == pygame.QUIT:
-                    playing = False
+                    self.playing = False
             screen.fill(self.bgColor)
             self.redrawAll(screen)
             pygame.display.flip()
