@@ -4,6 +4,7 @@ from __future__ import division
 Emily Newman's TP F15
 
 Using Pygame and PyEphem libraries
+Uses the Yale Bright Star Catalog, as well as PyEphem's star catalog
 """
 import pygame
 from framework import Framework 
@@ -285,8 +286,7 @@ class Planetarium(Framework):
         #full screen width and height
         self.fullWidth = self.shift*2
         self.fullHeight = self.shift*2
-        self.log = dict() #stores all stars based on computed values WRT PGH
-        self.pos = dict() #stores all screen positions of stars
+
         (self.MIN_ALT, self.MAX_ALT) = (0, math.pi/2)
         (self.MIN_AZ, self.MAX_AZ) = (0, 2*math.pi) #radians
         # upper left corner of screen in terms of sky
@@ -304,38 +304,9 @@ class Planetarium(Framework):
         self.GREEN2 = (0, 204, 0)
         self.PINK = (255, 102, 255)
         self.YELLOW = (255, 255, 0)
-        self.buttons = [ 
-                ZoomButton("zoomIn", 0, 0, self.LIGHT_BLUE),
-                ZoomButton("zoomOut", 25, 0, self.LIGHT_BLUE),
-                DirButton("up", self.width-50, self.height-50,
-                                                self.LIGHT_BLUE),
-                DirButton("down", self.width-50, self.height-20,
-                                                self.LIGHT_BLUE),
-                DirButton("left", self.width-75, self.height-35,
-                                                self.LIGHT_BLUE),
-                DirButton("right", self.width-25, self.height-35,
-                                                self.LIGHT_BLUE) ,
-                ModeButton("draw", self.width-self.font.size("draw")[0], 0, 
-                                                self.LIGHT_BLUE),
-                ModeButton("options",self.width-self.font.size("draw")[0] 
-                        -self.font.size("options")[0]-10, 0, self.LIGHT_BLUE)
-                        ]
-        #splitting the screen into 9ths width wise, 8ths height wise
-        self.optionsButtons = [ 
-            TimeButton("year", self.width*3//9, self.height*3//8, self.WHITE),
-            TimeButton("month", self.width*4//9, self.height*3//8, self.WHITE),
-            TimeButton("day", self.width*5//9, self.height*3//8, self.WHITE),
-            TimeButton("hour", self.width*6//9, self.height*3//8, self.WHITE),
-            TimeButton("minute", self.width*7//9, self.height*3//8, self.WHITE),
-            NowButton("now", self.width*8//9, self.height*3//8, self.PINK),
-            ToggleButton("realtime", self.width//2-self.font.size("OFF")[0]//2, 
-                                        self.height*5//8, self.RED),
-            ModeButton("return", self.width//2-self.font.size("Return")[0]//2, 
-                                    self.height*6//8, self.GREEN2),
-            ModeButton("quit", self.width//2-self.font.size("Quit")[0]//2,
-                            self.height*7//8, self.RED )
-        ]
-        self.selectedTimeButton = None
+
+        self.initButtons()
+        self.initOptionsMode()
 
         self.inRealTime = False
         self.mode = "main"
@@ -343,6 +314,41 @@ class Planetarium(Framework):
         self.initDrawMode()
         self.updateOptionButtons()
 
+    def initButtons(self):
+        self.buttons = [ 
+        ZoomButton("zoomIn", 0, 0, self.LIGHT_BLUE),
+        ZoomButton("zoomOut", 25, 0, self.LIGHT_BLUE),
+        DirButton("up", self.width-50, self.height-50,
+                                        self.LIGHT_BLUE),
+        DirButton("down", self.width-50, self.height-20,
+                                        self.LIGHT_BLUE),
+        DirButton("left", self.width-75, self.height-35,
+                                        self.LIGHT_BLUE),
+        DirButton("right", self.width-25, self.height-35,
+                                        self.LIGHT_BLUE) ,
+        ModeButton("draw", self.width-self.font.size("draw")[0], 0, 
+                                        self.LIGHT_BLUE),
+        ModeButton("options",self.width-self.font.size("draw")[0] 
+                -self.font.size("options")[0]-10, 0, self.LIGHT_BLUE)
+                ]
+
+    def initOptionsMode(self):
+        #splitting the screen into 9ths width wise, 8ths height wise
+        self.optionsButtons = [ 
+        TimeButton("year", self.width*3//9, self.height*3//8, self.WHITE),
+        TimeButton("month", self.width*4//9, self.height*3//8, self.WHITE),
+        TimeButton("day", self.width*5//9, self.height*3//8, self.WHITE),
+        TimeButton("hour", self.width*6//9, self.height*3//8, self.WHITE),
+        TimeButton("minute", self.width*7//9, self.height*3//8, self.WHITE),
+        NowButton("now", self.width*8//9, self.height*3//8, self.PINK),
+        ToggleButton("realtime", self.width//2-self.font.size("OFF")[0]//2, 
+                                    self.height*5//8, self.RED),
+        ModeButton("return", self.width//2-self.font.size("Return")[0]//2, 
+                                self.height*6//8, self.GREEN2),
+        ModeButton("quit", self.width//2-self.font.size("Quit")[0]//2,
+                        self.height*7//8, self.RED )
+        ]
+        self.selectedTimeButton = None
 
 
     def initDrawMode(self):
@@ -395,33 +401,32 @@ class Planetarium(Framework):
 
         #In main screen:
         #check all buttons
-
         else:
             self.checkButtons(x, y)
-
             #check all stars
             self.checkStars(x, y)
 
-            if self.mode == "draw" and self.onLine: 
-                print "removing line"
-                self.lines.pop()
-                self.onLine = False
-                return
 
 
     def optionsMousePressed(self, x, y):
         (left, up) = self.screenPos
         for button in self.optionsButtons:
-            val = button.onClick(x, y)
-            if button.name == "realtime":
-                self.inRealTime = val
-            elif isinstance(button, NowButton):
-                self.date = val
-            elif button.name == "return":
-                self.mode = val
-                print self.mode
-            else: #is a timebutton
-                self.selectedTimeButton = val
+            if super(type(button), button).onClick(x,y):
+                val = button.onClick(x, y)
+                if button.name == "realtime":
+                    self.inRealTime = val
+                    print self.inRealTime
+                elif isinstance(button, NowButton):
+                    self.date = val
+                elif isinstance(button, ModeButton):
+                    if val == "return":
+                        self.mode = "main"
+                    else:
+                        self.mode = val
+                    print self.mode
+                else: 
+                    self.selectedTimeButton = val
+                    print self.selectedTimeButton
                 
 
     def updateDate(self):
@@ -469,6 +474,11 @@ class Planetarium(Framework):
                         self.lines[-1].setEnd(star, self.screenPos)
                         self.onLine = False
                         return
+        if self.mode == "draw" and self.onLine: 
+            print "removing line"
+            self.lines.pop()
+            self.onLine = False
+            return
 
     def checkButtons(self, x, y):
         (left, up) = self.screenPos
@@ -490,7 +500,12 @@ class Planetarium(Framework):
                 if sx !=0 or sy!=0: return
             elif isinstance(button, ModeButton):
                 name = button.onClick(x, y)
-                if name != None: self.mode = name
+                if name != None and self.mode != name: 
+                    self.mode = name
+                elif name != None and self.mode == name: 
+                    self.mode = "main"
+                    print self.mode
+                    button.color = self.LIGHT_BLUE
 
 
     def resetTimeButtonColors(self):
@@ -514,10 +529,12 @@ class Planetarium(Framework):
 
     def keyPressed(self, keyCode, modifier):
         if self.mode == "options":
-            if keyCode == "K_UP":
+            if keyCode == pygame.K_UP:
                 self.selectedTimeButton.timeUp()
-            elif keycode == "K_DOWN":
+                print self.date
+            elif keyCode == pygame.K_DOWN:
                 self.selectedTimeButton.timeDown()
+                print self.date
 
 
     def keyReleased(self, keyCode, modifier):
@@ -526,30 +543,25 @@ class Planetarium(Framework):
     def timerFired(self, dt):
         if self.mode == "quit":
             pygame.quit()
+
         if self.inRealTime == True:
             self.date = datetime.datetime.now()
-            self.updateOptionButtons()
-        else: #is not in real time
-            while self.isKeyPressed("K_UP"):
-                if self.selectedTimeButton != None:
-                    self.selectedTimeButton.timeUp()
-            while self.isKeyPressed("K_DOWN"):
-                if self.selectedTimeButton != None:
-                    self.selectedTimeButton.timeDown()
-            if self.selectedTimeButton != None:
-                self.updateDate()     
 
+        if self.mode == "options":
+            if self.inRealTime == True:
+                self.updateOptionButtons()
+            else: #is not in real time
+                while self.isKeyPressed("K_UP"):
+                    if self.selectedTimeButton != None:
+                        self.selectedTimeButton.timeUp()
+                while self.isKeyPressed("K_DOWN"):
+                    if self.selectedTimeButton != None:
+                        self.selectedTimeButton.timeDown()
+                if self.selectedTimeButton != None:
+                    self.updateDate() 
 
-        # else: #for testing
-        #     newMinute = self.date.minute+1
-        #     newHour = self.date.hour
-        #     if self.date.minute+1 >= 60: 
-        #         newMinute = (self.date.minute+1)%60
-        #         newHour = self.date.hour+1
-        #     self.date = self.date.replace(self.date.year, self.date.month, 
-        #                             self.date.day, newHour%24, newMinute)
-        # self.updatePgh()
-        #self.calculateStars()
+        self.updatePgh()
+        self.calculateStars()    
 
     def updatePgh(self):
         self.pgh.date = ephem.Date(self.date)
@@ -594,6 +606,7 @@ class Planetarium(Framework):
         y = self.height*5//8
         self.drawText(screen, word, x, y, self.font, self.WHITE)
 
+        self.resetTimeButtonColors()
         for button in self.optionsButtons:
             button.draw(screen, self.font)
 
