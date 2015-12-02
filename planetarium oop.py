@@ -14,6 +14,11 @@ import math
 
 
 
+# from the class notes on Basic File I/O
+# http://www.cs.cmu.edu/~112/notes/notes-strings.html#basicFileIO
+def readFile(path): 
+    with open(path, "rt") as f:
+        return f.read()
 
 def pointInBox(point, boxCoords): #from my hw8a.py
     (x, y) = point
@@ -32,13 +37,14 @@ class Star(object):
         self.body = body #type == ephem.Body
         self.screenPos = None
         self.showInfo = False
-        self.r = 3
+        self.r = 1
 
     def changeInfo(self):
         self.showInfo = not self.showInfo
 
     def calculate(self, ref, shift):
         self.body.compute(ref)
+        self.r = int(self.body.mag)
         if self.body.alt < 0: #below horizon
             return #do nothing, screenPos remains None
         phi = self.body.alt + math.pi/2
@@ -58,12 +64,41 @@ class Star(object):
 
 class Line(object):
     def __init__(self, startStar, screenPos):
+        (left, up) = screenPos
         self.star1 = startStar
         (self.dispX1, self.dispY1) = self.star1.displayPos(left, up)
         (self.x1, self.y1) = self.star1.screenPos
+        self.star2 = None
+        (self.x2, self.y2) = self.star1.screenPos
+        (self.dispX2, self.dispY2) = (self.dispX1, self.dispY1)
+        self.color = (255, 255, 255) #white
 
-    def setEnd(self, star):
+    def setEnd(self, star, ref):
+        (left, up) = ref
         self.star2 = star
+        (self.x2, self.y2) = self.star2.screenPos
+        (self.dispX2, self.dispY2) = self.star2.displayPos
+
+
+    def updateEndPoint(self, x, y):
+        #only used temporarily for aesthetic purposes
+        self.dispX2 = x
+        self.dispY2 = y
+
+    def displayPoints(self, ref):
+        (left, up) = ref
+        if self.star2 == None:
+            return (self.star1.displayPos(left,up), (self.x2, self.y2))
+        else:
+            return (self.star1.displayPos, self.star2.displayPos)
+
+    def draw(self, screen, ref):
+        (start, end) = self.displayPoints(ref)
+        start = list(start)
+        end = list(end)
+        pygame.draw.line(screen, self.color, start, end, 2)
+
+
 
 class Button(object):
     def __init__(self, name, x, y, color, width=25, height=15):
@@ -101,7 +136,7 @@ class ZoomButton(Button):
         elif self.name=="zoomOut":
             self.dir=-1
             self.char="-"
-        self.zoom=10
+        self.zoom=30
 
     def onClick(self, x, y):
         if pointInBox((x,y), (self.x, self.y, self.x+self.width, 
@@ -170,7 +205,7 @@ class Planetarium(Framework):
         super(Planetarium, self).__init__()
         self.title = "PGH Planetarium"
         self.bgColor = self.BLACK
-        self.shift = 200 #changes with zooming?
+        self.shift = 500 #changes with zooming?
         #full screen width and height
         self.fullWidth = self.shift*2
         self.fullHeight = self.shift*2
@@ -185,6 +220,9 @@ class Planetarium(Framework):
         self.starList = [ ]
         self.initPittsburgh()
         self.initStars()
+        #read in more stars!
+        yaleCatalog = self.readInDB("ybs.edb")
+        self.starList += yaleCatalog
         self.zoomColor = (114, 164, 255) #light blue
         self.buttons = [ 
                 ZoomButton("zoomIn", 0, 0, self.zoomColor),
@@ -203,7 +241,6 @@ class Planetarium(Framework):
                             -self.font.size("options")[0]-10, 0, self.zoomColor)
                         ]
 
-        self.showStarInfo = True
         self.inRealTime = False
         self.mode = "main"
 
@@ -225,15 +262,24 @@ class Planetarium(Framework):
         self.pgh.long = "-79:59:45.20" 
         self.pgh.date = ephem.Date(self.date)
 
+    def readInDB(self, path):
+        #returns list of Star objects from all stars in DB
+        db = readFile(path)
+        starList = [ ] 
+        count = 1
+        for line in db.splitlines():
+            print count
+            count+=1
+            if line.startswith("#") or line == "": continue
+            line = line.strip()
+            body = ephem.readdb(line)
+            starList.append(Star(body.name, body))
+        return starList
+
     def calculateStars(self):
         for star in self.starList:
             star.calculate(self.pgh, self.shift)
 
-
-
-
-    def init(self):
-        pass
 
     def updateScreenPos(self, shift, x=0, y=0):
         (oldX, oldY) = self.screenPos
@@ -246,12 +292,20 @@ class Planetarium(Framework):
 
     def mousePressed(self, x, y):
         (left, up) = self.screenPos
+        #Options screen:
+        if self.mode == "options":
+            pass
+
+
+
+
+
         #In main screen:
         #check all buttons
         for button in self.buttons:
             if isinstance(button, ZoomButton):
                 val = button.onClick(x,y)
-                if self.shift+val < 0 or self.shift+val > 1000: continue
+                if self.shift+val < 0 or self.shift+val > 10000: continue
                 elif val != 0: 
                     self.updateScreenPos(val)
                     return
@@ -280,15 +334,22 @@ class Planetarium(Framework):
                     return #ensures only one star info shown
             elif self.mode == "draw":
                 if (pointInCircle((x,y), (cx, cy), star.r)
-                    or pointInBox((x,y), (cx, cy, cx+width, cy+height))):
-                        if not self.onLine:
-                            self.lines.append(Line(star, self.screenPos))
-                        else: 
-                            self.lines[-1].setEnd(star)
-                else: #clicked on point not in box
+                        or pointInBox((x,y), (cx, cy, cx+width, cy+height))):
+                    if self.onLine == False:
+                        self.lines.append(Line(star, self.screenPos))
+                        print "appended line"
+                        self.onLine = True
+                        return
+                    else: #self.onLine = True
+                        self.lines[-1].setEnd(star, self.screenPos)
+                        self.onLine = False
+                        return
+                else: #clicked on point not a star
                     if self.onLine: 
                         self.lines.pop()
                         self.onLine = False
+                        return
+
 
     def mouseReleased(self, x, y):
         pass
@@ -296,8 +357,7 @@ class Planetarium(Framework):
     def mouseMotion(self, x, y):
         if self.onLine:
             #shows line drawing in real time
-            self.lines[-1].x2 = x
-            self.lines[-1].y2 = y
+            self.lines[-1].updateEndPoint(x, y)
 
 
     def mouseDrag(self, x, y):
@@ -329,12 +389,28 @@ class Planetarium(Framework):
         # self.pgh.epoch = self.pgh.date
 
     def redrawAll(self, screen):
-        self.drawStars(screen)
-        self.drawButtons(screen)
+        if self.mode == "options":
+            self.drawOptions(screen)
+        else:
+            self.drawStars(screen)
+            self.drawButtons(screen)
+            if self.mode == "draw":
+                self.drawLines(screen)
+
+    def drawOptions(self, screen):
+        pass
+
+
+    def drawLines(self, screen):
+        for line in self.lines:
+            line.draw(screen, self.screenPos)
+
 
     def drawButtons(self, screen):
         for button in self.buttons:
             if isinstance(button, ModeButton):
+                if button.name == self.mode:
+                    button.color = self.GREEN
                 button.draw(screen, self.font)
             else:
                 button.draw(screen, self.bigFont)
@@ -346,6 +422,7 @@ class Planetarium(Framework):
             pos = star.displayPos(left, up)
             if pos != None:
                 if pointInBox(pos, (0,0,self.width,self.height)):
+                    if star.r < 0: continue
                     pygame.draw.circle(screen, self.WHITE, pos, star.r)
                     label = self.font.render(star.name, 1, self.GREEN)
                     screen.blit(label, pos)
@@ -365,6 +442,10 @@ class Planetarium(Framework):
         #Dec
         dec = self.font.render("Declination: "+str(starObj.dec), 1, self.WHITE)
         screen.blit(dec, (x, y+3*self.fontSize+2))
+        #Constellation
+        const = self.font.render("Constellation: " +
+                        ephem.constellation(starObj)[1], 1, self.WHITE)
+        screen.blit(const, (x, y+4*self.fontSize+2))
 
 
 
