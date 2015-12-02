@@ -83,8 +83,10 @@ class Line(object):
         #point distance from a line equation
         (x1, y1, x2, y2) = (self.dispX1, self.dispY1, self.dispX2, self.dispY2)
         d = abs((x2-x1)*(y1-y) - (x1-x)*(y2-y1))
-        d /= math.sqrt((x2-x1)**2 + (y2-y1)**2)
-        return d < self.width
+        denom = math.sqrt((x2-x1)**2 + (y2-y1)**2)
+        if denom != 0: d /= denom
+        print "successful click"
+        return d <= self.width
 
     def setEnd(self, star, ref):
         (left, up) = ref
@@ -298,6 +300,7 @@ class DrawButton(Button):
     def onClick(self, x, y):
         if pointInBox((x,y), (self.x, self.y, self.x+self.width, 
                                             self.y+self.height)):
+            print "clicked line"
             return self
 
 
@@ -392,6 +395,7 @@ class Planetarium(Framework):
         self.onLine = False
         self.lines = [ ]
         self.undidLines = [ ]
+        self.erasedLines = [ ] 
         self.lastAction = "draw"
         self.selectedDrawButton = None
         self.drawMode = "draw"
@@ -445,6 +449,7 @@ class Planetarium(Framework):
             self.checkDrawButtons(x, y)
             self.checkButtons(x, y)
             self.checkStars(x, y)
+            self.checkLines(x, y)
 
         elif self.mode == "main":
             #check all buttons
@@ -460,28 +465,60 @@ class Planetarium(Framework):
             if button.name == "undo":
                 if self.lastAction == "draw":
                     self.undidLines.append(self.lines.pop())
+                    print self.undidLines
+                    print self.lines
                 elif self.lastAction == "erase":
-                    self.lines.append(self.erasedLines.pop())
+                    if self.erasedLines != [ ]:
+                        self.lines.append(self.erasedLines.pop())
+                    print self.erasedLines
+                    print self.lines
+                elif self.lastAction == "clear":
+                    self.lines = copy.copy(self.erasedLines)
+                    self.erasedLines = [ ]
             elif button.name == "redo":
                 if self.lastAction == "draw":
                     if self.undidLines != [ ]:
                         self.lines.append(self.undidLines.pop())
+                    print self.undidLines
+                    print self.lines
                 elif self.lastAction == "erase":
                     self.erasedLines.append(self.lines.pop())
+                    print self.erasedLines
+                    print self.lines
+                elif self.lastAction == "clear":
+                    self.erasedLines = copy.copy(self.lines)
+                    self.lines = [ ]
+                    print self.erasedLines
+                    print self.lines
             elif button.name == "erase":
-                self.drawMode = "erase"
+                if self.drawMode == "draw":
+                    self.drawMode = "erase"
+                else:
+                    self.drawMode = "draw"
+                    self.selectedDrawButton = None
+                print self.drawMode
             elif button.name == "clear":
                 self.lastAction = "clear"
                 self.erasedLines = copy.copy(self.lines)
                 self.lines = [ ] 
+                print self.erasedLines
+                print self.lines
+            elif button.name == "save":
+                pygame.image.save(self.screen, "screenshot.jpg")
             #todo implement save
 
     def checkLines(self, x, y):
         if self.drawMode == "erase":
+            erasedLine = None
             for line in self.lines:
                 if line.onClick(x, y):
-                    self.erasedLines.append(self.lines.pop())
+                    erasedLine = line
                     self.lastAction = "erase"
+            if erasedLine != None: 
+                self.erasedLines.append(erasedLine)
+                self.lines.remove(erasedLine)
+                erasedLine = None
+
 
 
     def optionsMousePressed(self, x, y):
@@ -666,6 +703,7 @@ class Planetarium(Framework):
             if self.mode == "draw":
                 self.drawLines(screen)
                 self.drawDrawButtons(screen)
+        self.screen = screen
 
     def drawOptions(self, screen):
         word = "OPTIONS"
