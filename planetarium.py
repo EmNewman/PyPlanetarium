@@ -85,7 +85,7 @@ class Line(object):
         d = abs((x2-x1)*(y1-y) - (x1-x)*(y2-y1))
         denom = math.sqrt((x2-x1)**2 + (y2-y1)**2)
         if denom != 0: d /= denom
-        print "successful click"
+       # print "successful click"
         return d <= self.width
 
     def setEnd(self, star, ref):
@@ -300,7 +300,7 @@ class DrawButton(Button):
     def onClick(self, x, y):
         if pointInBox((x,y), (self.x, self.y, self.x+self.width, 
                                             self.y+self.height)):
-            print "clicked line"
+           # print "clicked line"
             return self
 
 
@@ -468,14 +468,14 @@ class Planetarium(Framework):
                     if self.lines != [ ]:
                         self.undidLines.append(self.lines.pop())
                         return 1
-                    print self.undidLines
-                    print self.lines
+                   # print self.undidLines
+                   # print self.lines
                 elif self.lastAction == "erase":
                     if self.erasedLines != [ ]:
                         self.lines.append(self.erasedLines.pop())
                         return 1
-                    print self.erasedLines
-                    print self.lines
+                   # print self.erasedLines
+                   # print self.lines
                 elif self.lastAction == "clear":
                     self.lines = copy.copy(self.erasedLines)
                     self.erasedLines = [ ]
@@ -485,20 +485,20 @@ class Planetarium(Framework):
                     if self.undidLines != [ ]:
                         self.lines.append(self.undidLines.pop())
                         return 1
-                    print self.undidLines
-                    print self.lines
+                   # print self.undidLines
+                   # print self.lines
                 elif self.lastAction == "erase":
                     if self.lines != [ ]:
                         self.erasedLines.append(self.lines.pop())
                         return 1
-                    print self.erasedLines
-                    print self.lines
+                   # print self.erasedLines
+                   # print self.lines
                 elif self.lastAction == "clear":
                     self.erasedLines = copy.copy(self.lines)
                     self.lines = [ ]
                     return 1
-                    print self.erasedLines
-                    print self.lines
+                   # print self.erasedLines
+                   # print self.lines
             elif button.name == "erase":
                 if self.drawMode == "draw":
                     self.drawMode = "erase"
@@ -511,8 +511,8 @@ class Planetarium(Framework):
                 self.lastAction = "clear"
                 self.erasedLines = copy.copy(self.lines)
                 self.lines = [ ] 
-                print self.erasedLines
-                print self.lines
+               # print self.erasedLines
+               # print self.lines
                 return 1
             elif button.name == "save":
                 pygame.image.save(self.screen, "screenshot.jpg")
@@ -540,7 +540,7 @@ class Planetarium(Framework):
                 val = button.onClick(x, y)
                 if button.name == "realtime":
                     self.inRealTime = val
-                    print self.inRealTime
+                   # print self.inRealTime
                 elif isinstance(button, NowButton):
                     self.date = val
                     self.updateOptionButtons()
@@ -549,10 +549,10 @@ class Planetarium(Framework):
                         self.mode = "main"
                     else:
                         self.mode = val
-                    print self.mode
+                   # print self.mode
                 else: 
                     self.selectedTimeButton = val
-                    print self.selectedTimeButton
+                   # print self.selectedTimeButton
                 
 
     def updateDate(self):
@@ -591,17 +591,17 @@ class Planetarium(Framework):
                         or pointInBox((x,y), (cx, cy, cx+width, cy+height))):
                     if self.onLine == False:
                         self.lines.append(Line(star, self.screenPos))
-                        # print "appended line"
-                        # print len(self.lines)
+                        ## print "appended line"
+                        ## print len(self.lines)
                         self.onLine = True
                         return
                     else: #is on a line
-                        # print "setting end"
+                        ## print "setting end"
                         self.lines[-1].setEnd(star, self.screenPos)
                         self.onLine = False
                         return
         if self.mode=="draw" and self.onLine and self.selectedDrawButton==None: 
-            print "removing line"
+           # print "removing line"
             if self.lines != [ ]: self.lines.pop()
             self.onLine = False
             return
@@ -630,7 +630,7 @@ class Planetarium(Framework):
                     self.mode = name
                 elif name != None and self.mode == name: 
                     self.mode = "main"
-                    print self.mode
+                   # print self.mode
                     button.color = self.LIGHT_BLUE
 
 
@@ -658,10 +658,10 @@ class Planetarium(Framework):
         if self.mode == "options":
             if keyCode == pygame.K_UP:
                 self.selectedTimeButton.timeUp()
-                print self.date
+               # print self.date
             elif keyCode == pygame.K_DOWN:
                 self.selectedTimeButton.timeDown()
-                print self.date
+               # print self.date
 
 
     def keyReleased(self, keyCode, modifier):
