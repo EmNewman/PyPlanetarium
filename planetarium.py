@@ -446,7 +446,8 @@ class Planetarium(Framework):
         #In main screen:
         #check all buttons
         elif self.mode == "draw":
-            self.checkDrawButtons(x, y)
+            check = self.checkDrawButtons(x, y)
+            if check == 1: return 
             self.checkButtons(x, y)
             self.checkStars(x, y)
             self.checkLines(x, y)
@@ -466,47 +467,56 @@ class Planetarium(Framework):
                 if self.lastAction == "draw":
                     if self.lines != [ ]:
                         self.undidLines.append(self.lines.pop())
+                        return 1
                     print self.undidLines
                     print self.lines
                 elif self.lastAction == "erase":
                     if self.erasedLines != [ ]:
                         self.lines.append(self.erasedLines.pop())
+                        return 1
                     print self.erasedLines
                     print self.lines
                 elif self.lastAction == "clear":
                     self.lines = copy.copy(self.erasedLines)
                     self.erasedLines = [ ]
+                    return 1
             elif button.name == "redo":
                 if self.lastAction == "draw":
                     if self.undidLines != [ ]:
                         self.lines.append(self.undidLines.pop())
+                        return 1
                     print self.undidLines
                     print self.lines
                 elif self.lastAction == "erase":
                     if self.lines != [ ]:
                         self.erasedLines.append(self.lines.pop())
+                        return 1
                     print self.erasedLines
                     print self.lines
                 elif self.lastAction == "clear":
                     self.erasedLines = copy.copy(self.lines)
                     self.lines = [ ]
+                    return 1
                     print self.erasedLines
                     print self.lines
             elif button.name == "erase":
                 if self.drawMode == "draw":
                     self.drawMode = "erase"
+                    return 1
                 else:
                     self.drawMode = "draw"
                     self.selectedDrawButton = None
-                print self.drawMode
+                    return 1
             elif button.name == "clear":
                 self.lastAction = "clear"
                 self.erasedLines = copy.copy(self.lines)
                 self.lines = [ ] 
                 print self.erasedLines
                 print self.lines
+                return 1
             elif button.name == "save":
                 pygame.image.save(self.screen, "screenshot.jpg")
+                return 1
             #todo implement save
 
     def checkLines(self, x, y):
@@ -533,6 +543,7 @@ class Planetarium(Framework):
                     print self.inRealTime
                 elif isinstance(button, NowButton):
                     self.date = val
+                    self.updateOptionButtons()
                 elif isinstance(button, ModeButton):
                     if val == "return":
                         self.mode = "main"
@@ -591,7 +602,7 @@ class Planetarium(Framework):
                         return
         if self.mode=="draw" and self.onLine and self.selectedDrawButton==None: 
             print "removing line"
-            self.lines.pop()
+            if self.lines != [ ]: self.lines.pop()
             self.onLine = False
             return
 
