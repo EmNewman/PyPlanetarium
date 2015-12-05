@@ -6,6 +6,8 @@ Emily Newman's TP F15
 Using Pygame and PyEphem libraries
 Uses the Yale Bright Star Catalog, as well as PyEphem's star catalog
 
+YBS available at http://mirrors.dotsrc.org/exherbo/YBS.edb
+
 Used http://mathworld.wolfram.com/Point-LineDistance2-Dimensional.html 
 for distance of a point from a line
 """
@@ -309,16 +311,15 @@ class Planetarium(Framework):
         super(Planetarium, self).__init__()
         self.title = "PGH Planetarium"
         self.bgColor = self.BLACK
-        self.shift = 1000 #changes with zooming?
-        #full screen width and height
-        self.fullWidth = self.shift*2
-        self.fullHeight = self.shift*2
+        self.shift = 1400 #changes with zooming
+        #full screen width and height is self.shift*2 at any time
+        self.margin = 10
 
         (self.MIN_ALT, self.MAX_ALT) = (0, math.pi/2)
         (self.MIN_AZ, self.MAX_AZ) = (0, 2*math.pi) #radians
         # upper left corner of screen in terms of sky
         # starts w/ center of screen being (0,0) of sky
-        self.screenPos = (self.fullWidth//2, self.fullHeight//2)
+        self.screenPos = (self.shift-self.width//2, self.shift-self.height//2)
         self.date = datetime.datetime.now() #always Datetime form
         self.starList = [ ]
         self.initPittsburgh()
@@ -340,6 +341,9 @@ class Planetarium(Framework):
         #draw mode initializing
         self.initDrawMode()
         self.updateOptionButtons()
+
+        self.justClicked = False
+        (self.mouseStartX, self.mouseStartY) = (None, None)
 
     def initButtons(self):
         self.buttons = [ 
@@ -457,6 +461,9 @@ class Planetarium(Framework):
             self.checkButtons(x, y)
             #check all stars
             self.checkStars(x, y)
+        print self.screenPos
+        print x, y
+
 
     def checkDrawButtons(self, x, y):
         for button in self.drawModeButtons:
@@ -643,7 +650,7 @@ class Planetarium(Framework):
             self.selectedTimeButton.color = self.YELLOW
 
     def mouseReleased(self, x, y):
-        pass
+        self.justClicked = False
 
     def mouseMotion(self, x, y):
         if self.onLine:
@@ -652,7 +659,20 @@ class Planetarium(Framework):
                 self.lines[-1].updateEndPoint(x, y)
 
     def mouseDrag(self, x, y):
-        pass
+        if self.mode == "main" or self.mode == "draw":
+            if self.justClicked == False:
+                self.justClicked = True
+                (self.mouseStartX, self.mouseStartY) = (x, y)
+            else:
+                (posX, posY) = self.screenPos
+                (dx, dy) = (self.mouseStartX-x, self.mouseStartY-y)
+                if self.legalScreenPos(posX+dx*1//4, posY+dy*1//4):
+                    self.screenPos = (posX+dx*1//4, posY+dy*1//4) 
+                    #to make the drag slower
+
+    def legalScreenPos(self, x, y):
+        return (0-self.margin <= x <= self.shift*2-self.width+2*self.margin
+                and 0-self.margin <= y <= self.shift*2-self.height+2*self.margin)
 
     def keyPressed(self, keyCode, modifier):
         if self.mode == "options":
@@ -667,12 +687,30 @@ class Planetarium(Framework):
     def keyReleased(self, keyCode, modifier):
         pass
 
+
+    # def clickAndDrag(self):
+    #     (button1, button2, button3) = pygame.mouse.get_pressed()
+    #     (x,y) = self.screenPos
+    #     if self.mouseStartX == None and button1 == True:
+    #         (self.mouseStartX, self.mouseStartY) = pygame.mouse.get_pos()
+    #     elif button1 == True and :
+    #         (curX, curY) = pygame.mouse.get_pos()
+    #         (dx, dy) = (self.mouseStartX-curX, self.mouseStartY-curY)
+    #         self.screenPos = (x+dx, y+dy) #to make the drag slower
+
+    #     elif button1 == False:
+    #         (self.mouseStartX, self.mouseStartY) = (None, None)
+
+
     def timerFired(self, dt):
         if self.mode == "quit":
             pygame.quit()
 
         if self.inRealTime == True:
             self.date = datetime.datetime.now()
+
+        # if self.mode == "main":
+        #     self.clickAndDrag()
 
         if self.mode == "options":
             if self.inRealTime == True:
