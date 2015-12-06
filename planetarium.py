@@ -81,6 +81,9 @@ class Line(object):
         self.color = (255, 255, 255) #white
         self.width = 2
 
+    def __repr__(self):
+        return "Line from " + self.star1.name + " to " + self.star2.name
+
     def onClick(self, x, y):
         #point distance from a line equation
         (x1, y1, x2, y2) = (self.dispX1, self.dispY1, self.dispX2, self.dispY2)
@@ -345,6 +348,7 @@ class Planetarium(Framework):
         self.justClicked = False
         (self.mouseStartX, self.mouseStartY) = (None, None)
 
+################################# INIT FUNCTIONS ##############################
     def initButtons(self):
         self.buttons = [ 
         ZoomButton("zoomIn", 0, 0, self.LIGHT_BLUE),
@@ -399,10 +403,12 @@ class Planetarium(Framework):
         self.onLine = False
         self.lines = [ ]
         self.undidLines = [ ]
+        self.undidActions = [ ] 
         self.erasedLines = [ ] 
         self.lastAction = "draw"
         self.selectedDrawButton = None
         self.drawMode = "draw"
+        self.actions = [ ]
 
     def initStars(self):
         for star in ephem.stars.db.split("\n"):
@@ -428,6 +434,11 @@ class Planetarium(Framework):
             starList.append(Star(body.name, body))
         return starList
 
+
+
+################################## STAR FUNCTIONS #############################
+
+
     def calculateStars(self):
         for star in self.starList:
             star.calculate(self.pgh, self.shift)
@@ -435,11 +446,14 @@ class Planetarium(Framework):
 
     def updateScreenPos(self, shift, x=0, y=0):
         (oldX, oldY) = self.screenPos
+        # print "old " + str(self.screenPos)
         if shift == 0:
             self.screenPos = (x+oldX, y+oldY)
         else:
+            oldShift = self.shift
             self.shift += shift
-            self.screenPos = (oldX+shift, oldY+shift)
+            self.screenPos=(oldX*self.shift/oldShift, oldY*self.shift/oldShift)
+        # print "new " + str(self.screenPos)
 
 
     def mousePressed(self, x, y):
@@ -452,79 +466,132 @@ class Planetarium(Framework):
         elif self.mode == "draw":
             check = self.checkDrawButtons(x, y)
             if check == 1: return 
-            self.checkButtons(x, y)
-            self.checkStars(x, y)
+            #check the nav buttons
+            self.checkNavButtons(x, y)
+            self.checkStarsDrawMode(x, y)
             self.checkLines(x, y)
 
         elif self.mode == "main":
             #check all buttons
-            self.checkButtons(x, y)
+            self.checkNavButtons(x, y)
             #check all stars
             self.checkStars(x, y)
-        print self.screenPos
-        print x, y
-
+        # print self.screenPos
+        # print x, y
 
     def checkDrawButtons(self, x, y):
         for button in self.drawModeButtons:
             #undo, redo, erase, clear, save
             if button.onClick(x, y) == None: continue
             self.selectedDrawButton = button
-            if button.name == "undo":
-                if self.lastAction == "draw":
-                    if self.lines != [ ]:
-                        self.undidLines.append(self.lines.pop())
-                        return 1
-                   # print self.undidLines
-                   # print self.lines
-                elif self.lastAction == "erase":
-                    if self.erasedLines != [ ]:
-                        self.lines.append(self.erasedLines.pop())
-                        return 1
-                   # print self.erasedLines
-                   # print self.lines
-                elif self.lastAction == "clear":
-                    self.lines = copy.copy(self.erasedLines)
-                    self.erasedLines = [ ]
-                    return 1
-            elif button.name == "redo":
-                if self.lastAction == "draw":
-                    if self.undidLines != [ ]:
-                        self.lines.append(self.undidLines.pop())
-                        return 1
-                   # print self.undidLines
-                   # print self.lines
-                elif self.lastAction == "erase":
-                    if self.lines != [ ]:
-                        self.erasedLines.append(self.lines.pop())
-                        return 1
-                   # print self.erasedLines
-                   # print self.lines
-                elif self.lastAction == "clear":
-                    self.erasedLines = copy.copy(self.lines)
-                    self.lines = [ ]
-                    return 1
-                   # print self.erasedLines
-                   # print self.lines
-            elif button.name == "erase":
+            if button.name == "erase":
                 if self.drawMode == "draw":
                     self.drawMode = "erase"
-                    return 1
                 else:
                     self.drawMode = "draw"
                     self.selectedDrawButton = None
-                    return 1
-            elif button.name == "clear":
-                self.lastAction = "clear"
-                self.erasedLines = copy.copy(self.lines)
-                self.lines = [ ] 
-               # print self.erasedLines
-               # print self.lines
                 return 1
+            elif button.name == "undo":
+                if self.actions != [ ]:
+                    toUndo = self.actions.pop()
+                    self.undidActions.append(toUndo)
+                    (action, line) = toUndo
+                    if action == "erase":
+                        self.lines.append(line)
+                    elif action == "draw":
+                        self.lines.remove(line)
+                return 1
+            elif button.name == "redo":
+                if self.undidActions != [ ]:
+                    toRedo = self.undidActions.pop()
+                    self.actions.append(toRedo)
+                    (action, line) = toRedo
+                    if action == "erase":
+                        self.lines.remove(line)
+                    elif action == "draw":
+                        self.lines.append(line)
+                return 1
+            elif button.name == "clear":
+                self.lines = [ ] 
+                self.actions = [ ] 
             elif button.name == "save":
                 pygame.image.save(self.screen, "screenshot.jpg")
                 return 1
-            #todo implement save
+
+
+
+# TODO possibly will need later?
+    # def checkDrawMode(self):
+    #     if self.drawMode == "draw":
+    #         pass
+    #     elif self.drawMode == "erase":
+    #         pass
+
+
+    # def checkDrawButtons(self, x, y):
+    #     for button in self.drawModeButtons:
+    #         #undo, redo, erase, clear, save
+    #         if button.onClick(x, y) == None: continue
+    #         self.selectedDrawButton = button
+    #         if button.name == "undo":
+    #             if self.lastAction == "draw":
+    #                 if self.lines != [ ]:
+    #                     self.undidLines.append(self.lines.pop())
+    #                     self.printAllLines()
+    #                     return 1
+    #             elif self.lastAction == "erase":
+    #                 if self.erasedLines != [ ]:
+    #                     self.lines.append(self.erasedLines.pop())
+    #                     self.printAllLines()
+    #                     return 1
+    #             elif self.lastAction == "clear":
+    #                 self.lines = copy.copy(self.erasedLines)
+    #                 self.erasedLines = [ ]
+    #                 self.printAllLines()
+    #                 return 1
+    #         elif button.name == "redo":
+    #             if self.lastAction == "draw":
+    #                 if self.undidLines != [ ]:
+    #                     self.lines.append(self.undidLines.pop())
+    #                     self.printAllLines()
+    #                     return 1
+    #             elif self.lastAction == "erase":
+    #                 if self.lines != [ ]:
+    #                     self.erasedLines.append(self.lines.pop())
+    #                     self.printAllLines()
+    #                     return 1
+    #             elif self.lastAction == "clear":
+    #                 self.erasedLines = copy.copy(self.lines)
+    #                 self.lines = [ ]
+    #                 self.printAllLines()
+    #                 return 1
+    #         elif button.name == "erase":
+    #             if self.drawMode == "draw":
+    #                 self.drawMode = "erase"
+    #                 self.printAllLines()
+    #                 return 1
+    #             else:
+    #                 self.drawMode = "draw"
+    #                 self.selectedDrawButton = None
+    #                 self.printAllLines()
+    #                 return 1
+    #         elif button.name == "clear":
+    #             self.lastAction = "clear"
+    #             self.erasedLines = copy.copy(self.lines)
+    #             self.lines = [ ] 
+    #             self.printAllLines()
+    #             return 1
+    #         elif button.name == "save":
+    #             pygame.image.save(self.screen, "screenshot.jpg")
+    #             return 1
+    #         #todo implement save
+
+
+    def printAllLines(self):
+        print self.lastAction
+        print "erased " + str(self.erasedLines)
+        print "undo " + str(self.undidLines)
+        print "current " + str(self.lines)
 
     def checkLines(self, x, y):
         if self.drawMode == "erase":
@@ -534,6 +601,7 @@ class Planetarium(Framework):
                     erasedLine = line
                     self.lastAction = "erase"
             if erasedLine != None: 
+                self.actions.append(("erase", erasedLine))
                 self.erasedLines.append(erasedLine)
                 self.lines.remove(erasedLine)
                 erasedLine = None
@@ -588,32 +656,72 @@ class Planetarium(Framework):
             if star.displayPos(left,up) == None: continue #not on screen
             (cx, cy) = star.displayPos(left,up)
             (width, height) = self.font.size(star.name)
-            if self.mode == "main":
-                if (pointInCircle((x,y), (cx, cy), star.r)
-                    or pointInBox((x,y), (cx, cy, cx+width, cy+height))):
-                    star.changeInfo()
-                    return #ensures only one star info shown
-            elif self.mode == "draw":
-                if (pointInCircle((x,y), (cx, cy), star.r)
-                        or pointInBox((x,y), (cx, cy, cx+width, cy+height))):
-                    if self.onLine == False:
-                        self.lines.append(Line(star, self.screenPos))
-                        ## print "appended line"
-                        ## print len(self.lines)
-                        self.onLine = True
-                        return
-                    else: #is on a line
-                        ## print "setting end"
-                        self.lines[-1].setEnd(star, self.screenPos)
-                        self.onLine = False
-                        return
-        if self.mode=="draw" and self.onLine and self.selectedDrawButton==None: 
-           # print "removing line"
-            if self.lines != [ ]: self.lines.pop()
-            self.onLine = False
-            return
+            if (pointInCircle((x,y), (cx, cy), star.r)
+                or pointInBox((x,y), (cx, cy, cx+width, cy+height))):
+                star.changeInfo()
+                return #ensures only one star info shown
 
-    def checkButtons(self, x, y):
+    def checkStarsDrawMode(self, x, y):
+        (left, up) = self.screenPos
+        if self.drawMode == "draw":
+            for star in self.starList:
+                if star.displayPos(left,up) == None: continue #not on screen
+                (cx, cy) = star.displayPos(left,up)
+                (width, height) = self.font.size(star.name)
+                if (pointInCircle((x,y), (cx, cy), star.r)
+                            or pointInBox((x,y), (cx, cy, cx+width, cy+height))):
+                        self.selectedDrawButton = None
+                        if self.onLine == False:
+                            self.lines.append(Line(star, self.screenPos))
+                            ## print "appended line"
+                            ## print len(self.lines)
+                            self.onLine = True
+                            return
+                        else: #is on a line
+                            # print "setting end"
+                            self.lines[-1].setEnd(star, self.screenPos)
+                            self.actions.append(("draw", self.lines[-1]))
+                            self.onLine = False
+                            return
+            if self.onLine and self.selectedDrawButton==None: 
+               # print "removing line"
+                if self.lines != [ ]: self.lines.pop()
+                self.onLine = False
+                return
+
+    # def checkStars(self, x, y):
+    #     (left, up) = self.screenPos
+    #     for star in self.starList:
+    #         if star.displayPos(left,up) == None: continue #not on screen
+    #         (cx, cy) = star.displayPos(left,up)
+    #         (width, height) = self.font.size(star.name)
+    #         if self.mode == "main":
+    #             if (pointInCircle((x,y), (cx, cy), star.r)
+    #                 or pointInBox((x,y), (cx, cy, cx+width, cy+height))):
+    #                 star.changeInfo()
+    #                 return #ensures only one star info shown
+    #         elif self.mode == "draw":
+    #             if (pointInCircle((x,y), (cx, cy), star.r)
+    #                     or pointInBox((x,y), (cx, cy, cx+width, cy+height))):
+    #                 if self.onLine == False:
+    #                     self.lines.append(Line(star, self.screenPos))
+    #                     ## print "appended line"
+    #                     ## print len(self.lines)
+    #                     self.onLine = True
+    #                     return
+    #                 else: #is on a line
+    #                     # print "setting end"
+    #                     self.lines[-1].setEnd(star, self.screenPos)
+    #                     self.actions.append(("draw", self.lines[-1]))
+    #                     self.onLine = False
+    #                     return
+    #     if self.mode=="draw" and self.onLine and self.selectedDrawButton==None: 
+    #        # print "removing line"
+    #         if self.lines != [ ]: self.lines.pop()
+    #         self.onLine = False
+    #         return
+
+    def checkNavButtons(self, x, y):
         (left, up) = self.screenPos
         for button in self.buttons:
             if isinstance(button, ZoomButton):
@@ -686,20 +794,6 @@ class Planetarium(Framework):
 
     def keyReleased(self, keyCode, modifier):
         pass
-
-
-    # def clickAndDrag(self):
-    #     (button1, button2, button3) = pygame.mouse.get_pressed()
-    #     (x,y) = self.screenPos
-    #     if self.mouseStartX == None and button1 == True:
-    #         (self.mouseStartX, self.mouseStartY) = pygame.mouse.get_pos()
-    #     elif button1 == True and :
-    #         (curX, curY) = pygame.mouse.get_pos()
-    #         (dx, dy) = (self.mouseStartX-curX, self.mouseStartY-curY)
-    #         self.screenPos = (x+dx, y+dy) #to make the drag slower
-
-    #     elif button1 == False:
-    #         (self.mouseStartX, self.mouseStartY) = (None, None)
 
 
     def timerFired(self, dt):
@@ -829,6 +923,9 @@ class Planetarium(Framework):
 
     def resetDrawButtonColors(self):
         for button in self.drawModeButtons:
+            if self.drawMode == "erase" and button.name == "erase":
+                button.color = self.YELLOW
+            else:
                 button.color = self.GREEN2
         if self.selectedDrawButton != None:
             self.selectedDrawButton.color = self.YELLOW
