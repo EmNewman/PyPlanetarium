@@ -24,7 +24,7 @@ from pgu import gui
 
 """
 TODO MASTER LIST:
-cities - in progress
+cities - done
 constellations?? - done
 interface / main screen nav (dragging mouse to move) - done
 undo/redo/delete bugs - mostly done?
@@ -185,35 +185,6 @@ class ZoomButton(Button):
         text=font.render(self.char, 1, self.BLACK)
         screen.blit(text, (self.x, self.y))
 
-class DirButton(Button):
-    def __init__(self, name, x, y, color, width=25, height=15):
-        super(DirButton, self).__init__(name, x, y, color, width, height)
-        self.dirX = 0
-        self.dirY = 0
-        self.d = 10
-        if self.name == "left":
-            self.dirX = -1
-            self.char = "<"
-        elif self.name == "right":
-            self.dirX = 1
-            self.char = ">"
-        elif self.name == "up":
-            self.dirY = -1
-            self.char = "^"
-        elif self.name == "down":
-            self.dirY = 1
-            self.char = "v"
-
-    def onClick(self, x, y):
-        if pointInBox((x,y), (self.x, self.y, self.x+self.width, 
-                                            self.y+self.height)):
-            return self.dirX*self.d if self.dirX != 0 else self.dirY*self.d
-        return 0
-
-    def draw(self, screen, font):   
-        super(DirButton, self).draw(screen, font)
-        text=font.render(self.char, 1, self.BLACK)
-        screen.blit(text, (self.x, self.y))
 
 class ModeButton(Button):
     def __init__(self, name, x, y, color, width=25, height=15):
@@ -378,6 +349,9 @@ class Planetarium(Framework):
         self.shift = 1400 #changes with zooming
         #full screen width and height is self.shift*2 at any time
         self.margin = 10
+        self.minZoom = 10
+        self.maxZoom = 10000
+        self.shiftChange = 5
 
         (self.MIN_ALT, self.MAX_ALT) = (0, math.pi/2)
         (self.MIN_AZ, self.MAX_AZ) = (0, 2*math.pi) #radians
@@ -422,14 +396,6 @@ class Planetarium(Framework):
         self.buttons = [ 
         ZoomButton("zoomIn", 0, 0, self.LIGHT_BLUE),
         ZoomButton("zoomOut", 25, 0, self.LIGHT_BLUE),
-        DirButton("up", self.width-50, self.height-50,
-                                        self.LIGHT_BLUE),
-        DirButton("down", self.width-50, self.height-20,
-                                        self.LIGHT_BLUE),
-        DirButton("left", self.width-75, self.height-35,
-                                        self.LIGHT_BLUE),
-        DirButton("right", self.width-25, self.height-35,
-                                        self.LIGHT_BLUE) ,
         ModeButton("draw", self.width-self.font.size("draw")[0], 0, 
                                         self.LIGHT_BLUE),
         ModeButton("options",self.width-self.font.size("draw")[0] 
@@ -554,6 +520,13 @@ class Planetarium(Framework):
             self.checkStars(x, y)
         # print self.screenPos
         # print x, y
+
+
+    def mouseScrollUp(self, x, y):
+        self.updateScreenPos(max(self.shift+self.shiftChange, self.maxZoom))
+
+    def mouseScrollDown(self, x, y):
+        self.updateScreenPos(min(self.shift-self.shiftChange, self.minZoom))
 
 
 
@@ -714,15 +687,6 @@ class Planetarium(Framework):
                 elif val != 0: 
                     self.updateScreenPos(val)
                     return
-            elif isinstance(button, DirButton):
-                val = button.onClick(x,y)
-                (sx,sy) = (0,0)
-                if button.name == "left" or button.name == "right":
-                    sx = val
-                else:
-                    sy = val
-                self.updateScreenPos(0, sx, sy)
-                if sx !=0 or sy!=0: return
             elif isinstance(button, ModeButton):
                 name = button.onClick(x, y)
                 if name != None and self.mode != name: 
