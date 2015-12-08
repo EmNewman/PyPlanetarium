@@ -19,18 +19,17 @@ import ephem.cities
 import datetime, time
 import math
 import copy
-from pgu import gui
 
 
 """
 TODO MASTER LIST:
 cities - done
-constellations?? - done
+constellations??
 interface / main screen nav (dragging mouse to move) - done
 undo/redo/delete bugs - mostly done?
-general interface
-make info more visible
-title screen?
+general interface - ???
+make info more visible - in progress
+splash screen
 
 """
 
@@ -862,21 +861,32 @@ class Planetarium(Framework):
                     screen.blit(label, pos)
                     if star.showInfo:
                         self.drawStarInfo(star, screen, pos)
+        #                 infostar = star
+        #                 infopos = pos
+        # if infostar != None: self.drawStarInfo(infostar, screen, pos)
 
 
     def drawStarInfo(self, star, screen, pos):
         (x, y) = pos
-        starObj = star.body
-        #Magnitude
+        starObj = star.body 
+        # RA will be the longest line
+        (width, height)=self.font.size("Right Ascension: " + str(starObj.a_ra))
+        fontHeight = height
+        height *= 4 #four lines
+        pygame.draw.rect(screen, self.BLACK, 
+                            pygame.Rect(x, y+fontHeight, width, height))
+
+        # Magnitude
         mag = self.font.render("Magnitude: " + str(starObj.mag), 1, self.WHITE)
         screen.blit(mag, (x, y+self.fontSize+2))
-        #RA
+        # RA
         ra=self.font.render("Right Ascension: "+str(starObj.a_ra),1,self.WHITE)
         screen.blit(ra, (x, y+2*self.fontSize+2))
-        #Dec
+        # Dec
         dec = self.font.render("Declination: "+str(starObj.dec), 1, self.WHITE)
         screen.blit(dec, (x, y+3*self.fontSize+2))
-        #Constellation
+        # Constellation - ephem.constellation(obj)[1] returns the name of
+        # the constellation the star is within
         const = self.font.render("Constellation: " +
                         ephem.constellation(starObj)[1], 1, self.WHITE)
         screen.blit(const, (x, y+4*self.fontSize+2))
