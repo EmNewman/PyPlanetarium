@@ -27,7 +27,7 @@ TODO MASTER LIST:
 -FIX FLOATING STARS BUG!!!!
 -Add in constellations
 
--all the extra stuff (video etc)
+-all the extra stuff (video, readme, etc)
 
 
 """
@@ -64,8 +64,14 @@ class Star(object):
         self.showInfo = False
         self.r = 1
 
+    def __str__(self):
+        return self.name
+
     def __eq__(self, other):
         return isinstance(other, Star) and self.name == other.name
+
+    def __hash__(self):
+        return hash(self.name)
 
     def changeInfo(self):
         self.showInfo = not self.showInfo
@@ -105,6 +111,9 @@ class Line(object):
         (self.dispX2, self.dispY2) = (self.dispX1, self.dispY1)
         self.color = (255, 255, 255) #white
         self.width = 2
+
+    def __hash__(self):
+        return hash((self.star1.name, self.star2.name))
 
     def __repr__(self):
         return self.star1.name+"|"+self.star2.name
@@ -392,6 +401,14 @@ class Planetarium(Framework):
 
 ################################# INIT FUNCTIONS ##############################
 
+    def initQuiz(self):
+        self.correctMsg = "Correct!"
+        size = 50
+        self.quizButtons = [
+        self.HintButton("hint", self.width-size, self.height-size, self.YELLOW,
+                                                                    size, size)
+        ]
+
     def initSplash(self):
         self.splashScreen = pygame.image.load(os.path.join("screens",
                                                         "splash.png"))
@@ -408,6 +425,7 @@ class Planetarium(Framework):
         ModeButton("options",self.width-self.font.size("draw")[0] 
                 -self.font.size("options")[0]-10, 0, self.LIGHT_BLUE)
                 ]
+                
     def initHelp(self):
         self.helpScreen = pygame.image.load(os.path.join("screens", "help.png"))
         self.helpButtons = [
@@ -502,18 +520,80 @@ class Planetarium(Framework):
             self.shift += shiftChange
             self.screenPos=(oldX*self.shift/oldShift, oldY*self.shift/oldShift)
 
+############################### quiz functions ##############################
 
-############### draw mode functions ##################
 
-    def unpackFile(self):
+    def loadConstellation(self, const):
+        folder = "const" #where all constellations are
+        self.unpackFile(const+".txt", folder)
+        self.constLines = copy.copy(self.lines)
+        #create set of stars in constellation
+        self.constStars = set()
+        for line in self.constLines:
+            self.constStars.add(self.line.star1)
+            self.constStars.add(self.line.star2)
+        self.lines = [ ]
+        self.actions = [ ]
+
+    def checkAnswer(self):
+        lines = set(self.lines) #gets rid of duplicates
+        constLines = set(self.constLines)
+        stars = set()
+        for line in self.lines:
+            stars.add(self.line.star1)
+            stars.add(self.line.star2)
+        diff = len(self.constStars) - len(stars)
+        linediff = len(constLines) - len(lines)
+        if diff > 0 or (diff==0 and stars!=self.constStars): 
+            #not enough stars! find missing star
+            missingStars = self.constStars - stars
+            #get stars in constellation but not in drawing
+            hintStar = missingStars.pop()
+            hinttext = "Hint: You are missing " + str(hintStar)
+        elif diff < 0: #too many stars! find the extra star
+            extraStars = stars - self.constStars
+            #get stars in drawing that arent in constellation
+            hintStar = extraStars.pop()
+            hinttext = "Hint: "+str(hintStar)+" does not belong!"
+        elif linediff > 0 or (diff==0 and lines!=constLines):
+            #too many lines/lines where they shouldn't belong
+            wrongLines = lines - constLines
+            #get the lines in drawing not in constellations
+            hintLine = wrongLines.pop()
+            hinttext = ("Hint: " +str(star1)+" and "+str(star2)+"shouldn't be" 
+                                                        +" connected!")
+        elif linediff < 0:
+            #not enough lines! find the missing line
+            missingLines = constLines - lines
+            hintLine = missingLines.pop()
+            star1, star2 = hintLine.star1, hintLine.star2
+            hinttext = ("Hint: " +str(star1)+" and "+str(star2)+"should be" 
+                                                        +" connected!")
+        else:
+            hinttext = self.correctMsg
+        return hinttext
+
+
+
+
+
+
+
+########################### draw mode functions ##############################
+
+
+
+    def unpackFile(self, source="savedata.txt", folder=""):
         directory = os.getcwd()
+        if folder == "": pass
+        else:
+            directory = os.path.join(directory, folder)
         lines = [ ]
         actions = [ ] 
-        if "savedata.txt" not in os.listdir(directory):
-            print "File not available: check that file is named savedata.txt"
+        if source not in os.listdir(directory):
             return 1
             #TODO:popup saying "not available, chk filename savedata.txt"
-        info = readFile(os.path.join(os.getcwd(), "savedata.txt")).splitlines()
+        info = readFile(os.path.join(directory, source)).splitlines()
         date = None
         screenPos = None
         shift = None
@@ -719,8 +799,7 @@ class Planetarium(Framework):
             (cx, cy) = star.displayPos(left,up)
             (width, height) = self.font.size(star.name)
             if (pointInCircle((x,y), (cx, cy), star.r)
-                or pointInBox((x,y), (cx, cy, cx+width, cy+height))):
-                print star.displayPos(left, up)
+                        or pointInBox((x,y), (cx, cy, cx+width, cy+height))):
                 self.infostar = star
                 return #ensures only one star info shown
         self.infostar = None
@@ -766,7 +845,7 @@ class Planetarium(Framework):
         for button in self.helpButtons:
             if super(type(button), button).onClick(x, y):
                 if isinstance(button, ModeButton) and button.name == "return": 
-                    self.mode = "main"
+                    self.mode = "draw"
 
 ################################# base functions ##############################
 
@@ -861,9 +940,6 @@ class Planetarium(Framework):
                 newHour = self.date.hour+1
             self.date = self.date.replace(self.date.year, self.date.month, 
                             self.date.day, newHour%23, newMinute)
-
-
-
 
         elif self.inRealTime:
             self.date = datetime.datetime.now()
