@@ -361,7 +361,7 @@ class Planetarium(Framework):
         self.shift = 1400 #changes with zooming
         #full screen width and height is self.shift*2 at any time
         self.margin = 10
-        self.minZoom = 10
+        self.minZoom = 300
         self.maxZoom = 10000
         self.shiftChange = 10
 
@@ -541,15 +541,13 @@ class Planetarium(Framework):
 
 
     def mouseScrollUp(self, x, y):
-        print "scrolling up"
-
         self.updateScreenPos(min(self.shiftChange, self.maxZoom-self.shift))
-        print self.shift
 
     def mouseScrollDown(self, x, y):
-        print "scrolling down"
-        self.updateScreenPos((min(-self.shiftChange, self.shift-self.minZoom)))
-        print self.shift
+        if self.shift-self.shiftChange < self.minZoom:
+            pass
+        else:
+            self.updateScreenPos(-self.shiftChange)
 
 
 ############### draw mode functions ##################
