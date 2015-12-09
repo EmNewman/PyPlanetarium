@@ -65,6 +65,9 @@ class Star(object):
         self.showInfo = False
         self.r = 1
 
+    def __eq__(self, other):
+        return isinstance(other, Star) and self.name == other.name
+
     def changeInfo(self):
         self.showInfo = not self.showInfo
 
@@ -107,13 +110,16 @@ class Line(object):
     def __repr__(self):
         return self.star1.name+"|"+self.star2.name
 
+    def __eq__(self, other):
+        return (isinstance(other, Line) and other.star1 == self.star1 
+                            and other.star2 == self.star2)
+
     def onClick(self, x, y):
         #point distance from a line equation
         (x1, y1, x2, y2) = (self.dispX1, self.dispY1, self.dispX2, self.dispY2)
         d = abs((x2-x1)*(y1-y) - (x1-x)*(y2-y1))
         denom = math.sqrt((x2-x1)**2 + (y2-y1)**2)
         if denom != 0: d /= denom
-       # print "successful click"
         return d <= 3*self.width
 
     def setEnd(self, star, ref):
@@ -325,7 +331,6 @@ class DrawButton(Button):
     def onClick(self, x, y):
         if pointInBox((x,y), (self.x, self.y, self.x+self.width, 
                                             self.y+self.height)):
-           # print "clicked line"
             return self
 
 
@@ -367,7 +372,7 @@ class Planetarium(Framework):
         self.initOptionsMode()
 
         self.inRealTime = False
-        self.mode = "main"
+        self.mode = "splash"
         #draw mode initializing
         self.initDrawMode()
         self.updateOptionButtons()
@@ -377,12 +382,19 @@ class Planetarium(Framework):
 
         self.infostar = None
         self.infopos = None
-
-
+        self.lastMode = None
+        self.initSplash()
+        self.initHelp()
 
 ################################# INIT FUNCTIONS ##############################
 
-        
+    def initSplash(self):
+        self.splashScreen = pygame.image.load(os.path.join("screens",
+                                                        "splash.png"))
+        self.splashButtons = [
+        ModeButton("GO", self.width//2, self.height*6//8, self.GREEN2, 
+                    self.bigFont.size("GO")[0],  self.bigFont.size("GO")[1])
+        ]
 
     def initButtons(self):
         self.buttons = [ 
@@ -391,6 +403,11 @@ class Planetarium(Framework):
         ModeButton("options",self.width-self.font.size("draw")[0] 
                 -self.font.size("options")[0]-10, 0, self.LIGHT_BLUE)
                 ]
+    def initHelp(self):
+        self.helpScreen = pygame.image.load(os.path.join("screens", "help.png"))
+        self.helpButtons = [
+        ModeButton("return", self.width//2, self.height*7//8, self.LIGHT_BLUE)
+        ]
 
     def initOptionsMode(self):
         #splitting the screen into 9ths width wise, 8ths height wise
@@ -416,20 +433,14 @@ class Planetarium(Framework):
     def initDrawMode(self):
         size = 50
         self.drawModeButtons = [ 
-                                DrawButton("erase", 0, self.height//8, 
-                                                    self.YELLOW, size, size),
-                                DrawButton("undo", 0, self.height*2//8,
-                                                    self.YELLOW, size, size),
-                                DrawButton("redo", 0, self.height*3//8, 
-                                                    self.YELLOW, size, size),
-                                DrawButton("clear", 0, self.height*4//8, 
-                                                    self.YELLOW, size, size),
-                                DrawButton("save", 0, self.height*5//8, 
-                                                    self.YELLOW, size, size),
-                                DrawButton("loadfile", 0, self.height*6//8, 
-                                                    self.YELLOW, size, size),
-                                DrawButton("savefile", 0, self.height*7//8, 
-                                                    self.YELLOW, size, size)
+            ModeButton("help", 0, 0, self.LIGHT_BLUE),
+            DrawButton("erase", 0, self.height//8, self.YELLOW, size, size),
+            DrawButton("undo", 0, self.height*2//8, self.YELLOW, size, size),
+            DrawButton("redo", 0, self.height*3//8, self.YELLOW, size, size),
+            DrawButton("clear", 0, self.height*4//8, self.YELLOW, size, size),
+            DrawButton("save", 0, self.height*5//8, self.YELLOW, size, size),
+            DrawButton("loadfile", 0, self.height*6//8,self.YELLOW, size, size),
+            DrawButton("savefile", 0, self.height*7//8, self.YELLOW, size, size)
                                 ]
         self.onLine = False
         self.lines = [ ]
@@ -479,53 +490,16 @@ class Planetarium(Framework):
 
     def updateScreenPos(self, shiftChange, x=0, y=0):
         (oldX, oldY) = self.screenPos
-        # print "old " + str(self.screenPos)
         if shiftChange == 0:
             self.screenPos = (x+oldX, y+oldY)
         else:
             oldShift = self.shift
             self.shift += shiftChange
             self.screenPos=(oldX*self.shift/oldShift, oldY*self.shift/oldShift)
-        # print "new " + str(self.screenPos)
-
-
-########################### MOUSE PRESSED FUNCTIONS ###########################
-
-    def mousePressed(self, x, y):
-        #Options screen:
-        if self.mode == "options":
-            self.optionsMousePressed(x, y)
-
-        #In main screen:
-        #check all buttons
-        elif self.mode == "draw":
-            check = self.checkDrawButtons(x, y)
-            if check == 1: return 
-            #check the nav buttons
-            self.checkNavButtons(x, y)
-            self.checkStarsDrawMode(x, y)
-            self.checkLines(x, y)
-
-        elif self.mode == "main":
-            #check all buttons
-            self.checkNavButtons(x, y)
-            #check all stars
-            self.checkStars(x, y)
-        # print self.screenPos
-        # print x, y
-
-
-    def mouseScrollUp(self, x, y):
-        self.updateScreenPos(min(self.shiftChange, self.maxZoom-self.shift))
-
-    def mouseScrollDown(self, x, y):
-        if self.shift-self.shiftChange < self.minZoom:
-            pass
-        else:
-            self.updateScreenPos(-self.shiftChange)
 
 
 ############### draw mode functions ##################
+
     def unpackFile(self):
         directory = os.getcwd()
         lines = [ ]
@@ -566,20 +540,21 @@ class Planetarium(Framework):
             star1.calculate(city, shift)
             star2.calculate(city, shift)
             lines += [ Line(star1, screenPos, star2) ]
-            actions += [ (typeof, newLine) ]
+            actions += [ (typeof, lines[-1]) ]
         self.date = date
         self.screenPos = screenPos
         self.shift = shift
         self.lines = copy.copy(lines)
         self.actions = copy.copy(actions)
 
-
     def checkDrawButtons(self, x, y):
         for button in self.drawModeButtons:
             #undo, redo, erase, clear, save
             if button.onClick(x, y) == None: continue
             self.selectedDrawButton = button
-            if button.name == "erase":
+            if button.name == "help":
+                self.mode = "help"
+            elif button.name == "erase":
                 if self.drawMode == "draw":
                     self.drawMode = "erase"
                 else:
@@ -646,7 +621,8 @@ class Planetarium(Framework):
                 erasedLine = None
 
 
-############### options mode functions ########################
+############################# helper functions ################################
+
 
     def optionsMousePressed(self, x, y):
         (left, up) = self.screenPos
@@ -655,20 +631,17 @@ class Planetarium(Framework):
                 val = button.onClick(x, y)
                 if button.name == "realtime":
                     self.inRealTime = val
-                   # print self.inRealTime
                 elif isinstance(button, NowButton):
                     self.date = val
                     self.updateOptionButtons()
                 elif isinstance(button, ModeButton):
                     if val == "return":
-                        self.mode = "main"
+                        self.mode = self.lastMode
                     else:
                         self.mode = val
-                   # print self.mode
                 else: 
                     self.selectedButton = val
-                   # print self.selectedButton
-                
+   
 
     def updateDate(self):
         yr = self.date.year
@@ -688,6 +661,23 @@ class Planetarium(Framework):
             elif button.name == "minute":
                 mi = button.getTime()
         self.date = self.date.replace(yr, mon, day, hr, mi)
+
+    def updateCity(self):
+        self.city.date = ephem.Date(self.date)
+        # self.city.epoch = self.city.date
+
+    def updateOptionButtons(self):
+        for button in self.optionsButtons:
+            if button.name == "year":
+                button.setTimeVal(self.date.year)
+            elif button.name == "month":
+                button.setTimeVal(self.date.month)
+            elif button.name == "day":
+                button.setTimeVal(self.date.day)
+            elif button.name == "hour":
+                button.setTimeVal(self.date.hour)
+            elif button.name == "minute":
+                button.setTimeVal(self.date.minute)
 
 
     def checkStars(self, x, y):
@@ -715,18 +705,14 @@ class Planetarium(Framework):
                         self.selectedDrawButton = None
                         if self.onLine == False:
                             self.lines.append(Line(star, self.screenPos))
-                            ## print "appended line"
-                            ## print len(self.lines)
                             self.onLine = True
                             return
                         else: #is on a line
-                            # print "setting end"
                             self.lines[-1].setEnd(star, self.screenPos)
                             self.actions.append(("draw", self.lines[-1]))
                             self.onLine = False
                             return
             if self.onLine and self.selectedDrawButton==None: 
-               # print "removing line"
                 if self.lines != [ ]: self.lines.pop()
                 self.onLine = False
                 return
@@ -737,10 +723,14 @@ class Planetarium(Framework):
         for button in self.buttons:
             name = button.onClick(x, y)
             if name != None and self.mode != name: 
+                self.lastMode = self.mode
                 self.mode = name
+                if self.mode == "draw": 
+                    self.inRealTime = False
+                elif self.mode == "options":
+                    self.updateOptionButtons()
             elif name != None and self.mode == name: 
                 self.mode = "main"
-               # print self.mode
                 button.color = self.LIGHT_BLUE
 
 
@@ -751,6 +741,51 @@ class Planetarium(Framework):
 
         if self.selectedButton != None:
             self.selectedButton.color = self.YELLOW
+
+
+    def legalScreenPos(self, x, y):
+        return (0-self.margin <= x <= self.shift*2-self.width+2*self.margin
+                and 0-self.margin <= y <= self.shift*2-self.height+2*self.margin)
+
+    def checkSplashButtons(self, x, y):
+        for button in self.splashButtons:
+            if super(type(button), button).onClick(x, y):
+                if isinstance(button, ModeButton) and button.name == "GO": 
+                    self.mode = "main"
+
+    def checkHelpButtons(self, x, y):
+        for button in self.helpButtons:
+            if super(type(button), button).onClick(x, y):
+                if isinstance(button, ModeButton) and button.name == "return": 
+                    self.mode = "main"
+
+################################# base functions ##############################
+
+    def mousePressed(self, x, y):
+        
+        #Splash screen
+        if self.mode == "splash":
+            self.checkSplashButtons(x, y)
+        elif self.mode == "help":
+            self.checkHelpButtons(x, y)
+        #Options screen:
+        elif self.mode == "options":
+            self.optionsMousePressed(x, y)
+        #In main screen:
+        #check all buttons
+        elif self.mode == "draw":
+            check = self.checkDrawButtons(x, y)
+            if check == 1: return 
+            #check the nav buttons
+            self.checkNavButtons(x, y)
+            self.checkStarsDrawMode(x, y)
+            self.checkLines(x, y)
+
+        elif self.mode == "main":
+            #check all buttons
+            self.checkNavButtons(x, y)
+            #check all stars
+            self.checkStars(x, y)
 
     def mouseReleased(self, x, y):
         self.justClicked = False
@@ -773,16 +808,11 @@ class Planetarium(Framework):
                     self.screenPos = (posX+dx*1//4, posY+dy*1//4) 
                     #to make the drag slower
 
-    def legalScreenPos(self, x, y):
-        return (0-self.margin <= x <= self.shift*2-self.width+2*self.margin
-                and 0-self.margin <= y <= self.shift*2-self.height+2*self.margin)
-
     def keyPressed(self, keyCode, modifier):
         if self.mode == "options" and self.selectedButton != None:
             val = None
             if keyCode == pygame.K_UP:
                 val = self.selectedButton.up()
-               # print self.date
             elif keyCode == pygame.K_DOWN:
                 val = self.selectedButton.down()
             if val != None: 
@@ -794,6 +824,18 @@ class Planetarium(Framework):
     def keyReleased(self, keyCode, modifier):
         pass
 
+    def isKeyPressed(self, key):
+        # return whether a specific key is being held 
+        return self._keys.get(key, False)
+
+    def mouseScrollUp(self, x, y):
+        self.updateScreenPos(min(self.shiftChange, self.maxZoom-self.shift))
+
+    def mouseScrollDown(self, x, y):
+        if self.shift-self.shiftChange < self.minZoom:
+            pass
+        else:
+            self.updateScreenPos(-self.shiftChange)
 
     def timerFired(self, dt):
         if self.mode == "quit":
@@ -818,36 +860,31 @@ class Planetarium(Framework):
         self.updateCity()
         self.calculateStars()
 
-    def updateCity(self):
-        self.city.date = ephem.Date(self.date)
-        # self.city.epoch = self.city.date
 
-    def updateOptionButtons(self):
-        for button in self.optionsButtons:
-            if button.name == "year":
-                button.setTimeVal(self.date.year)
-            elif button.name == "month":
-                button.setTimeVal(self.date.month)
-            elif button.name == "day":
-                button.setTimeVal(self.date.day)
-            elif button.name == "hour":
-                button.setTimeVal(self.date.hour)
-            elif button.name == "minute":
-                button.setTimeVal(self.date.minute)
 
 ######################## REDRAW FUNCTIONS ######################################
 
 
     def redrawAll(self, screen):
-        if self.mode == "options":
+        if self.mode == "splash":
+            self.drawSplash(screen)
+        elif self.mode == "options":
             self.drawOptions(screen)
-        else:
+        elif self.mode == "help":
+            self.drawHelp(screen)
+        else: #main, draw
             self.drawStars(screen)
             self.drawButtons(screen)
             if self.mode == "draw":
                 self.drawLines(screen)
                 self.drawDrawButtons(screen)
         self.screen = screen
+
+    def drawSplash(self, screen):
+        screen.fill(self.BLACK)
+        screen.blit(self.splashScreen, (0, 0))
+        for button in self.splashButtons:
+            button.draw(screen, self.bigFont)
 
     def drawOptions(self, screen):
         word = "OPTIONS"
@@ -933,15 +970,15 @@ class Planetarium(Framework):
         screen.blit(const, (x, y+4*self.fontSize+2))
 
     def drawDrawButtons(self, screen):
-        # self.resetDrawButtonColors()
         for button in self.drawModeButtons:
             if self.drawMode == "erase" and button.name == "erase":
                 button.drawSelected(screen)
             button.draw(screen, self.font)
 
-    def isKeyPressed(self, key):
-        # return whether a specific key is being held 
-        return self._keys.get(key, False)
+    def drawHelp(self, screen):
+        screen.blit(self.helpScreen, (0,0))
+        for button in self.helpButtons:
+            button.draw(screen, self.font)
 
 
 
