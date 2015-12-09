@@ -1,0 +1,10 @@
+2015 12 09 12 59
+2453.87690762.1598.5399422.1630.Pittsburgh
+draw.Polaris|UMi Delta-23
+draw.UMi Delta-23|UMi Epsilo-22
+draw.UMi Epsilo-22|UMi Zeta-16
+draw.UMi Zeta-16|UMi Theta-15
+draw.UMi Zeta-16|UMi Eta-21
+draw.UMi Theta-15|Kochab
+draw.Kochab|UMi Gamma-13
+draw.UMi Gamma-13|UMi Eta-21

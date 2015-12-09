@@ -23,13 +23,12 @@ import os
 
 """
 TODO MASTER LIST:
-cities - done
-constellations??
-interface / main screen nav (dragging mouse to move) - done
-undo/redo/delete bugs - mostly done?
-general interface - ???
-make info more visible - in progress
-splash screen
+
+-FIX FLOATING STARS BUG!!!!
+-Add in constellations
+
+-all the extra stuff (video etc)
+
 
 """
 
@@ -400,6 +399,7 @@ class Planetarium(Framework):
         ModeButton("GO", self.width//2, self.height*6//8, self.GREEN2, 
                     self.bigFont.size("GO")[0],  self.bigFont.size("GO")[1])
         ]
+        self.inFastTime = True
 
     def initButtons(self):
         self.buttons = [ 
@@ -720,6 +720,7 @@ class Planetarium(Framework):
             (width, height) = self.font.size(star.name)
             if (pointInCircle((x,y), (cx, cy), star.r)
                 or pointInBox((x,y), (cx, cy, cx+width, cy+height))):
+                print star.displayPos(left, up)
                 self.infostar = star
                 return #ensures only one star info shown
         self.infostar = None
@@ -759,6 +760,7 @@ class Planetarium(Framework):
             if super(type(button), button).onClick(x, y):
                 if isinstance(button, ModeButton) and button.name == "GO": 
                     self.mode = "main"
+                    self.inFastTime = False
 
     def checkHelpButtons(self, x, y):
         for button in self.helpButtons:
@@ -847,11 +849,25 @@ class Planetarium(Framework):
             self.updateScreenPos(-self.shiftChange)
 
     def timerFired(self, dt):
+
         if self.mode == "quit":
             pygame.quit()
 
-        if self.inRealTime == True:
+        if self.inFastTime:
+            newMinute = self.date.minute+1
+            newHour = self.date.hour
+            if self.date.minute+1 >= 60: 
+                newMinute = (self.date.minute+1)%60
+                newHour = self.date.hour+1
+            self.date = self.date.replace(self.date.year, self.date.month, 
+                            self.date.day, newHour%23, newMinute)
+
+
+
+
+        elif self.inRealTime:
             self.date = datetime.datetime.now()
+
 
         if self.mode == "draw":
             for line in self.lines:
@@ -895,7 +911,7 @@ class Planetarium(Framework):
         self.screen = screen
 
     def drawSplash(self, screen):
-        screen.fill(self.BLACK)
+        self.drawStars(screen, False)
         screen.blit(self.splashScreen, (0, 0))
         for button in self.splashButtons:
             button.draw(screen, self.bigFont)
@@ -943,7 +959,7 @@ class Planetarium(Framework):
             else:
                 button.draw(screen, self.bigFont)
 
-    def drawStars(self, screen):
+    def drawStars(self, screen, drawNames=True):
         (left, up) = self.screenPos
         for star in self.starList:
             star.calculate(self.city, self.shift)
@@ -953,8 +969,9 @@ class Planetarium(Framework):
                 if pointInBox(pos, (0,0,self.width,self.height)):
                     if star.r < 0: continue
                     pygame.draw.circle(screen, self.WHITE, pos, star.r)
-                    label = self.font.render(star.name, 1, self.GREEN)
-                    screen.blit(label, pos)
+                    if drawNames:
+                        label = self.font.render(star.name, 1, self.GREEN)
+                        screen.blit(label, pos)
         if self.infostar == None: return        
         self.drawStarInfo(self.infostar, screen, self.infostar.displayPos(left, up))
 
