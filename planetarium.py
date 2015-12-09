@@ -128,6 +128,11 @@ class Line(object):
         (self.x2, self.y2) = self.star2.screenPos
         (self.dispX2, self.dispY2) = self.star2.displayPos(left, up)
 
+    def updateLine(self, ref):
+        (left, up) = ref
+        (self.dispX1, self.dispY1) = self.star1.displayPos(left, up)
+        (self.dispX2, self.dispY2) = self.star2.displayPos(left, up)
+
     def updateEndPoint(self, x, y):
         #only used temporarily for aesthetic purposes
         self.dispX2 = x
@@ -525,6 +530,7 @@ class Planetarium(Framework):
                 city = action[3]
                 if city == "Pittsburgh": city = self.pgh
                 else: city = ephem.city(city)
+                city.date = date
                 continue
             action = action.split(".")
             typeof = action[0]
@@ -539,7 +545,9 @@ class Planetarium(Framework):
                     star2 = star
             star1.calculate(city, shift)
             star2.calculate(city, shift)
-            lines += [ Line(star1, screenPos, star2) ]
+            newLine = Line(star1, screenPos)
+            newLine.setEnd(star2, screenPos)
+            lines += [ newLine ]
             actions += [ (typeof, lines[-1]) ]
         self.date = date
         self.screenPos = screenPos
@@ -595,6 +603,7 @@ class Planetarium(Framework):
                     (typeof, line) = action
                     data += typeof + "."+ str(line)+"\n"
                 writeFile("savedata.txt", data)
+                print "File saved successfully to savedata.txt!" #TODO popup?
             elif button.name == "loadfile":
                 try:
                     lines = self.unpackFile()
@@ -610,7 +619,7 @@ class Planetarium(Framework):
     def checkLines(self, x, y):
         if self.drawMode == "erase":
             erasedLine = None
-            for line in self.lines:
+            for line in self.lines: #FLAG error here
                 if line.onClick(x, y):
                     erasedLine = line
                     self.lastAction = "erase"
@@ -620,6 +629,29 @@ class Planetarium(Framework):
                 self.lines.remove(erasedLine)
                 erasedLine = None
 
+    def checkStarsDrawMode(self, x, y):
+        (left, up) = self.screenPos
+        if self.drawMode == "draw":
+            for star in self.starList:
+                if star.displayPos(left,up) == None: continue #not on screen
+                (cx, cy) = star.displayPos(left,up)
+                (width, height) = self.font.size(star.name)
+                if (pointInCircle((x,y), (cx, cy), star.r)
+                            or pointInBox((x,y), (cx, cy, cx+width, cy+height))):
+                        self.selectedDrawButton = None
+                        if self.onLine == False:
+                            self.lines.append(Line(star, self.screenPos))
+                            self.onLine = True
+                            return
+                        else: #is on a line
+                            self.lines[-1].setEnd(star, self.screenPos)
+                            self.actions.append(("draw", self.lines[-1]))
+                            self.onLine = False
+                            return
+            if self.onLine and self.selectedDrawButton==None: 
+                if self.lines != [ ]: self.lines.pop()
+                self.onLine = False
+                return
 
 ############################# helper functions ################################
 
@@ -691,31 +723,6 @@ class Planetarium(Framework):
                 self.infostar = star
                 return #ensures only one star info shown
         self.infostar = None
-
-
-    def checkStarsDrawMode(self, x, y):
-        (left, up) = self.screenPos
-        if self.drawMode == "draw":
-            for star in self.starList:
-                if star.displayPos(left,up) == None: continue #not on screen
-                (cx, cy) = star.displayPos(left,up)
-                (width, height) = self.font.size(star.name)
-                if (pointInCircle((x,y), (cx, cy), star.r)
-                            or pointInBox((x,y), (cx, cy, cx+width, cy+height))):
-                        self.selectedDrawButton = None
-                        if self.onLine == False:
-                            self.lines.append(Line(star, self.screenPos))
-                            self.onLine = True
-                            return
-                        else: #is on a line
-                            self.lines[-1].setEnd(star, self.screenPos)
-                            self.actions.append(("draw", self.lines[-1]))
-                            self.onLine = False
-                            return
-            if self.onLine and self.selectedDrawButton==None: 
-                if self.lines != [ ]: self.lines.pop()
-                self.onLine = False
-                return
 
 
     def checkNavButtons(self, x, y):
@@ -805,7 +812,9 @@ class Planetarium(Framework):
                 (posX, posY) = self.screenPos
                 (dx, dy) = (self.mouseStartX-x, self.mouseStartY-y)
                 if self.legalScreenPos(posX+dx*1//4, posY+dy*1//4):
-                    self.screenPos = (posX+dx*1//4, posY+dy*1//4) 
+                    self.screenPos = (posX+dx*1//4, posY+dy*1//4)
+
+
                     #to make the drag slower
 
     def keyPressed(self, keyCode, modifier):
@@ -843,6 +852,11 @@ class Planetarium(Framework):
 
         if self.inRealTime == True:
             self.date = datetime.datetime.now()
+
+        if self.mode == "draw":
+            for line in self.lines:
+                if line.star2 != None:
+                    line.updateLine(self.screenPos) 
 
         if self.mode == "options":
             if self.inRealTime == True:
