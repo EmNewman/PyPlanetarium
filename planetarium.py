@@ -86,6 +86,8 @@ class Star(object):
     def displayPos(self, left, up):
         if self.screenPos == None: return None
         (x,y) = self.screenPos
+        # if self.name == "Psc 72": 
+        #     print (int(x - left), int(y - up))
         return (int(x - left), int(y - up))
 
 
@@ -163,7 +165,7 @@ class Button(object):
 
 
 class ZoomButton(Button):
-    def __init__(self, name, x, y, color, width=25, height=15):
+    def __init__(self, name, x, y, color, width=30, height=30):
         super(ZoomButton, self).__init__(name, x, y, color, width, height)
         self.dir = 0
         self.char = ""
@@ -174,6 +176,7 @@ class ZoomButton(Button):
             self.dir=-1
             self.char="-"
         self.zoom=30
+        self.icon = pygame.image.load(os.path.join('icons', name+'.png'))
 
     def onClick(self, x, y):
         if pointInBox((x,y), (self.x, self.y, self.x+self.width, 
@@ -183,9 +186,7 @@ class ZoomButton(Button):
             return 0 #no change to shift
 
     def draw(self, screen, font):
-        super(ZoomButton, self).draw(screen, font)
-        text=font.render(self.char, 1, self.BLACK)
-        screen.blit(text, (self.x, self.y))
+        screen.blit(self.icon, (self.x, self.y))
 
 
 class ModeButton(Button):
@@ -399,6 +400,9 @@ class Planetarium(Framework):
         self.justClicked = False
         (self.mouseStartX, self.mouseStartY) = (None, None)
 
+        self.infostar = None
+        self.infopos = None
+
 
 
 ################################# INIT FUNCTIONS ##############################
@@ -408,7 +412,7 @@ class Planetarium(Framework):
     def initButtons(self):
         self.buttons = [ 
         ZoomButton("zoomIn", 0, 0, self.LIGHT_BLUE),
-        ZoomButton("zoomOut", 25, 0, self.LIGHT_BLUE),
+        ZoomButton("zoomOut", 30, 0, self.LIGHT_BLUE),
         ModeButton("draw", self.width-self.font.size("draw")[0], 0, 
                                         self.LIGHT_BLUE),
         ModeButton("options",self.width-self.font.size("draw")[0] 
@@ -512,8 +516,6 @@ class Planetarium(Framework):
         # print "new " + str(self.screenPos)
 
 
-
-
 ########################### MOUSE PRESSED FUNCTIONS ###########################
 
     def mousePressed(self, x, y):
@@ -556,6 +558,7 @@ class Planetarium(Framework):
         lines = [ ]
         actions = [ ] 
         if "savedata.txt" not in os.listdir(directory):
+            print "File not available: check that file is named savedata.txt"
             return 1
             #TODO:popup saying "not available, chk filename savedata.txt"
         info = readFile(os.path.join(os.getcwd(), "savedata.txt")).splitlines()
@@ -565,7 +568,7 @@ class Planetarium(Framework):
         for index in xrange(len(info)):
             action = info[index]
             if action == "": continue
-            if index == 0: #should be datetime
+            if index == 0: #datetime
                 date = datetime.datetime.strptime(action, "%Y %m %d %H %M")
                 continue
             elif index == 1: #screenPos and shift
@@ -577,15 +580,11 @@ class Planetarium(Framework):
                 else: city = ephem.city(city)
                 continue
             action = action.split(".")
-            # if len(action) < 2: continue
             typeof = action[0]
             line = action[1]
             line = line.split("|")
-            # if len(line) < 2: continue
-            star1Name = line[0]
-            star2Name = line[1]
-            star1 = None
-            star2 = None
+            (star1Name, star2Name) = (line[0], line[1])
+            (star1, star2) = (None, None)
             for star in self.starList:
                 if star.name == star1Name:
                     star1 = star
@@ -593,8 +592,7 @@ class Planetarium(Framework):
                     star2 = star
             star1.calculate(city, shift)
             star2.calculate(city, shift)
-            newLine = Line(star1, screenPos, star2)
-            lines += [ newLine ]
+            lines += [ Line(star1, screenPos, star2) ]
             actions += [ (typeof, newLine) ]
         self.date = date
         self.screenPos = screenPos
@@ -659,16 +657,7 @@ class Planetarium(Framework):
                     #TODO: popup saying loaded correctly?
                 except:
                     print "Not a valid file!"
-                
 
-
-
-
-    def printAllLines(self):
-        print self.lastAction
-        print "erased " + str(self.erasedLines)
-        print "undo " + str(self.undidLines)
-        print "current " + str(self.lines)
 
     def checkLines(self, x, y):
         if self.drawMode == "erase":
@@ -736,8 +725,9 @@ class Planetarium(Framework):
             (width, height) = self.font.size(star.name)
             if (pointInCircle((x,y), (cx, cy), star.r)
                 or pointInBox((x,y), (cx, cy, cx+width, cy+height))):
-                star.changeInfo()
+                self.infostar = star
                 return #ensures only one star info shown
+        self.infostar = None
 
 
     def checkStarsDrawMode(self, x, y):
@@ -927,7 +917,6 @@ class Planetarium(Framework):
         for line in self.lines:
             line.draw(screen, self.screenPos)
 
-
     def drawButtons(self, screen):
         for button in self.buttons:
             if isinstance(button, ModeButton):
@@ -938,9 +927,10 @@ class Planetarium(Framework):
                 button.draw(screen, self.bigFont)
 
     def drawStars(self, screen):
+        (left, up) = self.screenPos
         for star in self.starList:
             star.calculate(self.city, self.shift)
-            (left, up) = self.screenPos
+            
             pos = star.displayPos(left, up)
             if pos != None:
                 if pointInBox(pos, (0,0,self.width,self.height)):
@@ -948,12 +938,8 @@ class Planetarium(Framework):
                     pygame.draw.circle(screen, self.WHITE, pos, star.r)
                     label = self.font.render(star.name, 1, self.GREEN)
                     screen.blit(label, pos)
-                    if star.showInfo:
-                        self.drawStarInfo(star, screen, pos)
-        #                 infostar = star
-        #                 infopos = pos
-        # if infostar != None: self.drawStarInfo(infostar, screen, pos)
-
+        if self.infostar == None: return        
+        self.drawStarInfo(self.infostar, screen, self.infostar.displayPos(left, up))
 
     def drawStarInfo(self, star, screen, pos):
         (x, y) = pos
@@ -980,22 +966,12 @@ class Planetarium(Framework):
                         ephem.constellation(starObj)[1], 1, self.WHITE)
         screen.blit(const, (x, y+4*self.fontSize+2))
 
-    # def resetDrawButtonColors(self):
-    #     for button in self.drawModeButtons:
-    #         if self.drawMode == "erase" and button.name == "erase":
-    #             button.color = self.YELLOW
-    #         else:
-    #             button.color = self.GREEN2
-    #     if self.selectedDrawButton != None:
-    #         self.selectedDrawButton.color = self.YELLOW
-
     def drawDrawButtons(self, screen):
         # self.resetDrawButtonColors()
         for button in self.drawModeButtons:
             if self.drawMode == "erase" and button.name == "erase":
                 button.drawSelected(screen)
             button.draw(screen, self.font)
-
 
     def isKeyPressed(self, key):
         # return whether a specific key is being held 
