@@ -164,31 +164,6 @@ class Button(object):
                                             self.width, self.height))
 
 
-class ZoomButton(Button):
-    def __init__(self, name, x, y, color, width=30, height=30):
-        super(ZoomButton, self).__init__(name, x, y, color, width, height)
-        self.dir = 0
-        self.char = ""
-        if self.name == "zoomIn":
-            self.dir=1
-            self.char="+"
-        elif self.name=="zoomOut":
-            self.dir=-1
-            self.char="-"
-        self.zoom=30
-        self.icon = pygame.image.load(os.path.join('icons', name+'.png'))
-
-    def onClick(self, x, y):
-        if pointInBox((x,y), (self.x, self.y, self.x+self.width, 
-                                            self.y+self.height)):
-            return self.dir*self.zoom
-        else:
-            return 0 #no change to shift
-
-    def draw(self, screen, font):
-        screen.blit(self.icon, (self.x, self.y))
-
-
 class ModeButton(Button):
     def __init__(self, name, x, y, color, width=25, height=15):
         super(ModeButton, self).__init__(name, x, y, color, width, height)
@@ -411,8 +386,6 @@ class Planetarium(Framework):
 
     def initButtons(self):
         self.buttons = [ 
-        ZoomButton("zoomIn", 0, 0, self.LIGHT_BLUE),
-        ZoomButton("zoomOut", 30, 0, self.LIGHT_BLUE),
         ModeButton("draw", self.width-self.font.size("draw")[0], 0, 
                                         self.LIGHT_BLUE),
         ModeButton("options",self.width-self.font.size("draw")[0] 
@@ -762,20 +735,13 @@ class Planetarium(Framework):
     def checkNavButtons(self, x, y):
         (left, up) = self.screenPos
         for button in self.buttons:
-            if isinstance(button, ZoomButton):
-                val = button.onClick(x,y)
-                if self.shift+val < 0 or self.shift+val > 10000: continue
-                elif val != 0: 
-                    self.updateScreenPos(val)
-                    return
-            elif isinstance(button, ModeButton):
-                name = button.onClick(x, y)
-                if name != None and self.mode != name: 
-                    self.mode = name
-                elif name != None and self.mode == name: 
-                    self.mode = "main"
-                   # print self.mode
-                    button.color = self.LIGHT_BLUE
+            name = button.onClick(x, y)
+            if name != None and self.mode != name: 
+                self.mode = name
+            elif name != None and self.mode == name: 
+                self.mode = "main"
+               # print self.mode
+                button.color = self.LIGHT_BLUE
 
 
     def resetTimeButtonColors(self):
