@@ -19,7 +19,7 @@ import ephem.cities
 import datetime, time
 import math
 import copy
-
+import os
 
 """
 TODO MASTER LIST:
@@ -35,13 +35,16 @@ splash screen
 
 
 
-
-
-# from the class notes on Basic File I/O
+# read/writeFile from the class notes on Basic File I/O
 # http://www.cs.cmu.edu/~112/notes/notes-strings.html#basicFileIO
-def readFile(path): 
-    with open(path, "rt") as f:
-        return f.read()
+def readFile(filename, mode="rt"):       # rt = "read text"
+    with open(filename, mode) as fin:
+        return fin.read()
+
+def writeFile(filename, contents, mode="wt"):    # wt = "write text"
+    with open(filename, mode) as fout:
+        fout.write(contents)
+
 
 def pointInBox(point, boxCoords): #from my hw8a.py
     (x, y) = point
@@ -65,7 +68,7 @@ class Star(object):
     def changeInfo(self):
         self.showInfo = not self.showInfo
 
-    def calculate(self, ref, shift):
+    def calculate(self, ref, shift): #ref = city, shift = Planetarium.shift
         self.body.compute(ref)
         self.r = int(self.body.mag)
         if self.body.alt < 0: #below horizon
@@ -85,20 +88,22 @@ class Star(object):
         (x,y) = self.screenPos
         return (int(x - left), int(y - up))
 
+
 class Line(object):
-    def __init__(self, startStar, screenPos):
+    def __init__(self, startStar, screenPos, endStar=None):
+        self.screenPos = screenPos
         (left, up) = screenPos
         self.star1 = startStar
         (self.dispX1, self.dispY1) = self.star1.displayPos(left, up)
         (self.x1, self.y1) = self.star1.screenPos
-        self.star2 = None
+        self.star2 = endStar
         (self.x2, self.y2) = self.star1.screenPos
         (self.dispX2, self.dispY2) = (self.dispX1, self.dispY1)
         self.color = (255, 255, 255) #white
         self.width = 2
 
     def __repr__(self):
-        return "Line from " + self.star1.name + " to " + self.star2.name
+        return self.star1.name+"|"+self.star2.name
 
     def onClick(self, x, y):
         #point distance from a line equation
@@ -107,7 +112,7 @@ class Line(object):
         denom = math.sqrt((x2-x1)**2 + (y2-y1)**2)
         if denom != 0: d /= denom
        # print "successful click"
-        return d <= self.width
+        return d <= 3*self.width
 
     def setEnd(self, star, ref):
         (left, up) = ref
@@ -133,7 +138,6 @@ class Line(object):
         pygame.draw.line(screen, self.color, start, end, self.width)
 
 
-
 class Button(object):
     def __init__(self, name, x, y, color, width=25, height=15):
     # x and y are upper left corner
@@ -156,7 +160,6 @@ class Button(object):
                                             self.width, self.height), 1)
         screen.fill(self.color, pygame.Rect(self.x, self.y, 
                                             self.width, self.height))
-
 
 
 class ZoomButton(Button):
@@ -204,6 +207,7 @@ class ModeButton(Button):
             return self.name
         return None
 
+
 class TimeButton(Button):
     def __init__(self, name, x, y, color, width=25, height=15):
         super(TimeButton, self).__init__(name, x, y, color, width, height)
@@ -219,7 +223,9 @@ class TimeButton(Button):
         elif self.name == "day":
             self.minTime = 1
             self.maxTime = 31 #to be controlled in Planetarium
-        else: #hour, minute
+        elif self.name == "hour":
+            self.maxTime = 23
+        else: #minute
             self.maxTime = 59
         self.timeVal = 0
         self.YELLOW = (255, 255, 0)
@@ -260,6 +266,7 @@ class NowButton(Button):
                                             self.y+self.height)):
             return datetime.datetime.now()
 
+
 class ToggleButton(Button):
     def __init__(self, name, x, y, color, width=25, height=15):
         super(ToggleButton, self).__init__(name, x, y, color, width, height)
@@ -282,6 +289,7 @@ class ToggleButton(Button):
         super(ToggleButton, self).draw(screen, font)
         text = font.render(word, 1, self.BLACK)
         screen.blit(text, (self.x, self.y))
+
 
 class ListButton(Button):
     def __init__(self,  name, x, y, color, data, width=25, height=15):
@@ -327,11 +335,16 @@ class ListButton(Button):
 
 
 class DrawButton(Button):
+    def __init__(self, name, x, y, color, width=25, height=15):
+        super(DrawButton, self).__init__(name, x, y, color, width, height)
+        self.icon = pygame.image.load(os.path.join('icons', name+'.png'))
+
+    def drawSelected(self, screen):
+        pygame.draw.rect(screen, self.color, 
+                        pygame.Rect(self.x, self.y, self.width, self.height))
+
     def draw(self, screen, font):
-        super(DrawButton, self).draw(screen, font)
-        word = self.name[0].upper() + self.name[1:]
-        text = font.render(word, 1, self.BLACK)
-        screen.blit(text, (self.x, self.y))
+        screen.blit(self.icon, (self.x, self.y))
 
     def onClick(self, x, y):
         if pointInBox((x,y), (self.x, self.y, self.x+self.width, 
@@ -350,7 +363,7 @@ class Planetarium(Framework):
         self.margin = 10
         self.minZoom = 10
         self.maxZoom = 10000
-        self.shiftChange = 5
+        self.shiftChange = 10
 
         (self.MIN_ALT, self.MAX_ALT) = (0, math.pi/2)
         (self.MIN_AZ, self.MAX_AZ) = (0, 2*math.pi) #radians
@@ -363,6 +376,7 @@ class Planetarium(Framework):
         self.cities.sort()
         self.initPittsburgh()
         self.city = self.pgh
+        self.cityName = "Pittsburgh"
         self.initStars()
         #read in more stars!
         yaleCatalog = self.readInDB("ybs.edb")
@@ -423,18 +437,22 @@ class Planetarium(Framework):
 
 
     def initDrawMode(self):
-        size = self.height//7
+        size = 50
         self.drawModeButtons = [ 
-                                DrawButton("erase", 0, self.height*2//7, 
-                                                    self.GREEN2, size, size),
-                                DrawButton("undo", 0, self.height*3//7, 
-                                                    self.GREEN2, size, size),
-                                DrawButton("redo", 0, self.height*4//7, 
-                                                    self.GREEN2, size, size),
-                                DrawButton("save", 0, self.height*5//7, 
-                                                    self.GREEN2, size, size),
-                                DrawButton("clear", 0, self.height*6//7, 
-                                                    self.GREEN2, size, size)
+                                DrawButton("erase", 0, self.height//8, 
+                                                    self.YELLOW, size, size),
+                                DrawButton("undo", 0, self.height*2//8,
+                                                    self.YELLOW, size, size),
+                                DrawButton("redo", 0, self.height*3//8, 
+                                                    self.YELLOW, size, size),
+                                DrawButton("clear", 0, self.height*4//8, 
+                                                    self.YELLOW, size, size),
+                                DrawButton("save", 0, self.height*5//8, 
+                                                    self.YELLOW, size, size),
+                                DrawButton("loadfile", 0, self.height*6//8, 
+                                                    self.YELLOW, size, size),
+                                DrawButton("savefile", 0, self.height*7//8, 
+                                                    self.YELLOW, size, size)
                                 ]
         self.onLine = False
         self.lines = [ ]
@@ -445,8 +463,9 @@ class Planetarium(Framework):
         self.selectedDrawButton = None
         self.drawMode = "draw"
         self.actions = [ ]
+        self.iconSize = 50
 
-    def initStars(self):
+    def initStars(self): #FLAG
         for star in ephem.stars.db.split("\n"):
             starName = star.split(",")[0]
             if starName == "": continue #not a star
@@ -481,14 +500,14 @@ class Planetarium(Framework):
             star.calculate(self.city, self.shift)
 
 
-    def updateScreenPos(self, shift, x=0, y=0):
+    def updateScreenPos(self, shiftChange, x=0, y=0):
         (oldX, oldY) = self.screenPos
         # print "old " + str(self.screenPos)
-        if shift == 0:
+        if shiftChange == 0:
             self.screenPos = (x+oldX, y+oldY)
         else:
             oldShift = self.shift
-            self.shift += shift
+            self.shift += shiftChange
             self.screenPos=(oldX*self.shift/oldShift, oldY*self.shift/oldShift)
         # print "new " + str(self.screenPos)
 
@@ -522,14 +541,68 @@ class Planetarium(Framework):
 
 
     def mouseScrollUp(self, x, y):
-        self.updateScreenPos(max(self.shift+self.shiftChange, self.maxZoom))
+        print "scrolling up"
+
+        self.updateScreenPos(min(self.shiftChange, self.maxZoom-self.shift))
+        print self.shift
 
     def mouseScrollDown(self, x, y):
-        self.updateScreenPos(min(self.shift-self.shiftChange, self.minZoom))
-
+        print "scrolling down"
+        self.updateScreenPos((min(-self.shiftChange, self.shift-self.minZoom)))
+        print self.shift
 
 
 ############### draw mode functions ##################
+    def unpackFile(self):
+        directory = os.getcwd()
+        lines = [ ]
+        actions = [ ] 
+        if "savedata.txt" not in os.listdir(directory):
+            return 1
+            #TODO:popup saying "not available, chk filename savedata.txt"
+        info = readFile(os.path.join(os.getcwd(), "savedata.txt")).splitlines()
+        date = None
+        screenPos = None
+        shift = None
+        for index in xrange(len(info)):
+            action = info[index]
+            if action == "": continue
+            if index == 0: #should be datetime
+                date = datetime.datetime.strptime(action, "%Y %m %d %H %M")
+                continue
+            elif index == 1: #screenPos and shift
+                action = action.split(".")
+                screenPos = (int(action[0]), int(action[1]))
+                shift = int(action[2])
+                city = action[3]
+                if city == "Pittsburgh": city = self.pgh
+                else: city = ephem.city(city)
+                continue
+            action = action.split(".")
+            # if len(action) < 2: continue
+            typeof = action[0]
+            line = action[1]
+            line = line.split("|")
+            # if len(line) < 2: continue
+            star1Name = line[0]
+            star2Name = line[1]
+            star1 = None
+            star2 = None
+            for star in self.starList:
+                if star.name == star1Name:
+                    star1 = star
+                elif star.name == star2Name:
+                    star2 = star
+            star1.calculate(city, shift)
+            star2.calculate(city, shift)
+            newLine = Line(star1, screenPos, star2)
+            lines += [ newLine ]
+            actions += [ (typeof, newLine) ]
+        self.date = date
+        self.screenPos = screenPos
+        self.shift = shift
+        self.lines = copy.copy(lines)
+        self.actions = copy.copy(actions)
 
 
     def checkDrawButtons(self, x, y):
@@ -570,6 +643,27 @@ class Planetarium(Framework):
             elif button.name == "save":
                 pygame.image.save(self.screen, "screenshot.jpg")
                 return 1
+            elif button.name == "savefile":
+                (left, up) = self.screenPos
+                data = (self.date.strftime("%Y %m %d %H %M")+"\n"+str(left)+"."+
+                        str(up)+"."+str(self.shift)+"." + self.cityName + "\n")
+                for action in self.actions:
+                    (typeof, line) = action
+                    data += typeof + "."+ str(line)+"\n"
+                writeFile("savedata.txt", data)
+            elif button.name == "loadfile":
+                try:
+                    lines = self.unpackFile()
+                    if lines == 1: 
+                        print ("File not found! Make sure it is named "+ 
+                                                        "savedata.txt")
+                    #TODO: file not loaded popup?
+                    #TODO: popup saying loaded correctly?
+                except:
+                    print "Not a valid file!"
+                
+
+
 
 
     def printAllLines(self):
@@ -741,10 +835,7 @@ class Planetarium(Framework):
                 if val == "Pittsburgh": self.city = self.pgh
                 else: 
                     self.city = ephem.city(val)
-                print self.city 
-
-                print val
-
+                    self.cityName = val
 
     def keyReleased(self, keyCode, modifier):
         pass
@@ -891,18 +982,20 @@ class Planetarium(Framework):
                         ephem.constellation(starObj)[1], 1, self.WHITE)
         screen.blit(const, (x, y+4*self.fontSize+2))
 
-    def resetDrawButtonColors(self):
-        for button in self.drawModeButtons:
-            if self.drawMode == "erase" and button.name == "erase":
-                button.color = self.YELLOW
-            else:
-                button.color = self.GREEN2
-        if self.selectedDrawButton != None:
-            self.selectedDrawButton.color = self.YELLOW
+    # def resetDrawButtonColors(self):
+    #     for button in self.drawModeButtons:
+    #         if self.drawMode == "erase" and button.name == "erase":
+    #             button.color = self.YELLOW
+    #         else:
+    #             button.color = self.GREEN2
+    #     if self.selectedDrawButton != None:
+    #         self.selectedDrawButton.color = self.YELLOW
 
     def drawDrawButtons(self, screen):
-        self.resetDrawButtonColors()
+        # self.resetDrawButtonColors()
         for button in self.drawModeButtons:
+            if self.drawMode == "erase" and button.name == "erase":
+                button.drawSelected(screen)
             button.draw(screen, self.font)
 
 

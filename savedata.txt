@@ -1,0 +1,5 @@
+2015 12 08 20 28
+1093.1098.1400.Pittsburgh
+draw.Cyg 14|Cyg 19
+draw.Cyg 19|Cyg Delta-18
+draw.Cyg Delta-18|Cyg 14

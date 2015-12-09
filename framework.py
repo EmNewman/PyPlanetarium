@@ -22,6 +22,11 @@ class Framework(object):
     def init(self):
         pass
 
+    def mouseScrollUp(self, x, y):
+        pass
+
+    def mouseScrollDown(self, x, y):
+        pass
 
     def mousePressed(self, x, y):
         pass
@@ -87,10 +92,8 @@ class Framework(object):
                 if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                     self.mousePressed(*(event.pos))
                 elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 4:
-                    print "scrolling up"         
                     self.mouseScrollUp(*(event.pos))
                 elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 5:
-                    print "scrolling down"
                     self.mouseScrollDown(*(event.pos))
                 elif event.type == pygame.MOUSEBUTTONUP and event.button == 1:
                     self.mouseReleased(*(event.pos))
