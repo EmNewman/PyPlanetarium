@@ -10,6 +10,9 @@ YBS available at http://mirrors.dotsrc.org/exherbo/YBS.edb
 
 Used http://mathworld.wolfram.com/Point-LineDistance2-Dimensional.html 
 for distance of a point from a line
+
+Icon images obtained from Google Images.
+
 """
 import pygame
 from framework import Framework 
@@ -90,8 +93,6 @@ class Star(object):
     def displayPos(self, left, up):
         if self.screenPos == None: return None
         (x,y) = self.screenPos
-        # if self.name == "Psc 72": 
-        #     print (int(x - left), int(y - up))
         return (int(x - left), int(y - up))
 
 class Line(object):
@@ -253,7 +254,7 @@ class TimeButton(Button):
         if self.name == "year":
             self.minTime = 100
             self.maxTime = 3000
-            self.width += 5
+            self.width += 15
         elif self.name == "month":
             self.minTime = 1
             self.maxTime = 12
@@ -266,6 +267,7 @@ class TimeButton(Button):
             self.maxTime = 59
         self.timeVal = 0
         self.YELLOW = (255, 255, 0)
+        self.WHITE = (255, 255, 255)
 
     def up(self):
         if self.minTime <= self.timeVal+1 <= self.maxTime:
@@ -289,6 +291,10 @@ class TimeButton(Button):
         super(TimeButton, self).draw(screen, font)
         text = font.render(str(self.timeVal), 1, self.BLACK)
         screen.blit(text, (self.x, self.y))
+        name = self.name[0].upper() + self.name[1:]
+        text = font.render(name, 1, self.WHITE)
+        screen.blit(text, (self.x+self.width//2-font.size(name)[0]//2, 
+                            self.y-font.size(name)[1]-5))
 
 class NowButton(Button):
     def draw(self, screen, font):
@@ -308,6 +314,7 @@ class ToggleButton(Button):
         self.toggle = False
         self.offColor = color #red
         self.onColor = (0, 204, 0) #green
+        self.width += 5
 
     def onClick(self, x, y):
         if pointInBox((x,y), (self.x, self.y, self.x+self.width, 
@@ -444,7 +451,7 @@ class Planetarium(Framework):
 
 
     def initQuiz(self):
-        self.hint = Hint(self.width//2-175, self.height//2-60, "", 350, 120)
+        self.hint = Hint(self.width//2-175, self.height//2-65, "", 370, 120)
         self.correctMsg = "Correct!"
         size = 50
         self.quizButtons = [
@@ -475,18 +482,19 @@ class Planetarium(Framework):
     def initHelp(self):
         self.helpScreen = pygame.image.load(os.path.join("screens", "help.png"))
         self.helpButtons = [
-        ModeButton("return", self.width//2, self.height*7//8, self.LIGHT_BLUE)
+        ModeButton("return", self.width//2-self.font.size("return")[0]//2, 
+                            self.height*7//8, self.LIGHT_BLUE)
         ]
 
     def initOptionsMode(self):
         #splitting the screen into 9ths width wise, 8ths height wise
         self.optionsButtons = [ 
-        TimeButton("year", self.width*3//9, self.height*3//8, self.WHITE),
+        TimeButton("year", self.width*5//18, self.height*3//8, self.WHITE),
         TimeButton("month", self.width*4//9, self.height*3//8, self.WHITE),
         TimeButton("day", self.width*5//9, self.height*3//8, self.WHITE),
         TimeButton("hour", self.width*6//9, self.height*3//8, self.WHITE),
         TimeButton("minute", self.width*7//9, self.height*3//8, self.WHITE),
-        NowButton("now", self.width*8//9, self.height*3//8, self.PINK),
+        NowButton("now", self.width*8//9, self.height*3//8, self.PINK, 33),
         ListButton("city", self.width//2-self.font.size("OOOOOOOOOOOOOO")[0]//2,
                                 self.height*4//8, self.LIGHT_BLUE, self.cities),
         ToggleButton("realtime", self.width//2-self.font.size("OFF")[0]//2, 
@@ -608,7 +616,6 @@ class Planetarium(Framework):
         self.const = const
         folder = "const" #where all constellations are
         self.unpackFile(const+".txt", folder)
-        print "*"+ str(self.screenPos)
         self.constLines = copy.copy(self.lines)
         #create set of stars in constellation
         self.constStars = set()
@@ -689,7 +696,6 @@ class Planetarium(Framework):
 
     def checkAnswer(self):
         lines = set(self.lines) #gets rid of duplicates
-        print lines
         constLines = set(self.constLines)
         stars = set()
         for line in self.lines:
@@ -720,7 +726,7 @@ class Planetarium(Framework):
             missingLines = constLines - lines
             hintLine = missingLines.pop()
             star1, star2 = hintLine.star1, hintLine.star2
-            hinttext = ("Hint: " +str(star1)+" and "+str(star2)+"should be" 
+            hinttext = ("Hint: " +str(star1)+" and "+str(star2)+" should be" 
                                                         +" connected!")
         else:
             hinttext = self.correctMsg
@@ -819,8 +825,6 @@ class Planetarium(Framework):
                 (cx, cy) = star.displayPos(left,up)
                 (width, height) = self.smallFont.size(star.name)
                 if pointInCircle((x,y), (cx, cy), star.r):
-                    print "clicked in star"
-                    print self.onLine
                     self.selectedDrawButton = None
                     if self.onLine == False:
                         self.lines.append(Line(star, self.screenPos))
@@ -848,13 +852,10 @@ class Planetarium(Framework):
                 (cx, cy) = star.displayPos(left,up)
                 (width, height) = self.smallFont.size(star.name)
                 if pointInBox((x,y),(cx, cy, cx+width, cy+height)):
-                    print "clicked in box"
-                    print self.onLine
                     self.selectedDrawButton = None
                     if self.onLine == False:
                         self.lines.append(Line(star, self.screenPos))
                         self.onLine = True
-                        print self.lines
                         return 1
                     else: #is on a line
                         if star != self.lines[-1].star1:
@@ -946,6 +947,7 @@ class Planetarium(Framework):
             self.hint.text = ""
             if self.constindex == len(self.quizzes):
                 self.hint.setText("You have completed the quiz!")
+                self.lines = [ ]
                 self.hint.display(True)
             elif self.constindex > len(self.quizzes):
                 self.hint.setText("")
@@ -1078,7 +1080,7 @@ class Planetarium(Framework):
                 if self.selectedButton != None:
                     self.updateDate() 
 
-        
+        self.updateCity()
         self.calculateStars()
 
 
@@ -1122,7 +1124,7 @@ class Planetarium(Framework):
         self.drawText(screen, word, x, y, self.font, self.WHITE)
 
         word = "Date:"
-        x = self.width*2//9
+        x = self.width*1//9
         y = self.height*3//8
         self.drawText(screen, word, x, y, self.font, self.WHITE)
 
@@ -1132,9 +1134,10 @@ class Planetarium(Framework):
         self.drawText(screen, word, x, y, self.font, self.WHITE)
 
         word = "Stars move in real time:"
-        x = self.width*1//9
+        x = self.width*1//18
         y = self.height*5//8
         self.drawText(screen, word, x, y, self.font, self.WHITE)
+
 
         self.resetTimeButtonColors()
         for button in self.optionsButtons:
