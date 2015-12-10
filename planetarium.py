@@ -24,11 +24,8 @@ import os
 """
 TODO MASTER LIST:
 
--FIX FLOATING STARS BUG!!!!
--Add in constellations
-
+-implement quiz
 -all the extra stuff (video, readme, etc)
-
 
 """
 
@@ -158,6 +155,41 @@ class Line(object):
         (start, end) = self.displayPoints(ref)
         pygame.draw.line(screen, self.color, start, end, self.width)
 
+class Hint(object):
+    def __init__(self, x, y, text, width, height):
+        self.x = x
+        self.y = y
+        self.text = text
+        self.show = False
+        self.textcolor = (0, 0, 0) #black
+        self.bgcolor = (242, 189, 46) #yellowish
+        self.width = width
+        self.height = height
+        self.text2 = "Click here to go back."
+
+    def display(self, value=True):
+        self.show = value
+
+    def onClick(self, x, y):
+        if (pointInBox((x,y), (self.x, self.y, self.x+self.width, 
+                                            self.y+self.height))):
+            self.show = False
+
+    def draw(self, screen, font):
+        if self.show:
+            pygame.draw.rect(screen, self.bgcolor, 
+                pygame.Rect(self.x, self.y, self.width, self.height))
+            text = font.render(self.text, 1, self.textcolor)
+            screen.blit(text, (self.x+self.width//2-font.size(self.text)[0]//2, 
+                            self.y+self.height//3-font.size(self.text)[1]//2))
+            text2 = font.render(self.text2, 1, self.textcolor)
+            screen.blit(text2, (self.x+self.width//2-font.size(self.text2)[0]//2, 
+                        self.y+self.height*2//3-font.size(self.text2)[1]//2))
+
+    def setText(self, text):
+        self.text = text
+
+
 
 class Button(object):
     def __init__(self, name, x, y, color, width=25, height=15):
@@ -182,17 +214,24 @@ class Button(object):
         screen.fill(self.color, pygame.Rect(self.x, self.y, 
                                             self.width, self.height))
 
+class HintButton(Button):
+    def __init__(self, name, x, y, color, width=50, height=50):
+        super(HintButton, self).__init__(name, x, y, color, width, height)
+        self.icon = pygame.image.load(os.path.join('icons', self.name+'.png'))
+
+    def draw(self, screen, font):
+        screen.blit(self.icon, (self.x, self.y))
+        
 
 class ModeButton(Button):
     def __init__(self, name, x, y, color, width=25, height=15):
         super(ModeButton, self).__init__(name, x, y, color, width, height)
 
-             
     def draw(self, screen, font): 
         word = self.name[0].upper() + self.name[1:]
-        (self.width, self.height) = font.size(word)  
+        if (self.width, self.height) == (25, 15): #defaults
+            (self.width, self.height) = font.size(word)
         super(ModeButton, self).draw(screen, font)
-        (self.width, self.height) = font.size(word)
         text = font.render(word, 1, self.BLACK)
         screen.blit(text, (self.x, self.y))
 
@@ -398,16 +437,21 @@ class Planetarium(Framework):
         self.lastMode = None
         self.initSplash()
         self.initHelp()
+        self.initQuiz()
 
 ################################# INIT FUNCTIONS ##############################
 
     def initQuiz(self):
+        self.hint = Hint(self.width//2-100, self.height//2-50, "", 200, 100)
         self.correctMsg = "Correct!"
         size = 50
         self.quizButtons = [
-        self.HintButton("hint", self.width-size, self.height-size, self.YELLOW,
+        HintButton("hint", self.width-size, self.height-size, self.YELLOW,
                                                                     size, size)
         ]
+        self.constindex = 0
+        self.quizzes = ["bigdipper", "littledipper"]
+        self.const = self.quizzes[0]
 
     def initSplash(self):
         self.splashScreen = pygame.image.load(os.path.join("screens",
@@ -425,7 +469,7 @@ class Planetarium(Framework):
         ModeButton("options",self.width-self.font.size("draw")[0] 
                 -self.font.size("options")[0]-10, 0, self.LIGHT_BLUE)
                 ]
-                
+
     def initHelp(self):
         self.helpScreen = pygame.image.load(os.path.join("screens", "help.png"))
         self.helpButtons = [
@@ -456,7 +500,8 @@ class Planetarium(Framework):
     def initDrawMode(self):
         size = 50
         self.drawModeButtons = [ 
-            ModeButton("help", 0, 0, self.LIGHT_BLUE),
+            ModeButton("quiz", 0, 0, self.PINK),
+            ModeButton("help", self.width-125, 0, self.LIGHT_BLUE),
             DrawButton("erase", 0, self.height//8, self.YELLOW, size, size),
             DrawButton("undo", 0, self.height*2//8, self.YELLOW, size, size),
             DrawButton("redo", 0, self.height*3//8, self.YELLOW, size, size),
@@ -530,8 +575,8 @@ class Planetarium(Framework):
         #create set of stars in constellation
         self.constStars = set()
         for line in self.constLines:
-            self.constStars.add(self.line.star1)
-            self.constStars.add(self.line.star2)
+            self.constStars.add(line.star1)
+            self.constStars.add(line.star2)
         self.lines = [ ]
         self.actions = [ ]
 
@@ -572,10 +617,6 @@ class Planetarium(Framework):
         else:
             hinttext = self.correctMsg
         return hinttext
-
-
-
-
 
 
 
@@ -640,8 +681,12 @@ class Planetarium(Framework):
             #undo, redo, erase, clear, save
             if button.onClick(x, y) == None: continue
             self.selectedDrawButton = button
-            if button.name == "help":
-                self.mode = "help"
+            if isinstance(button, ModeButton):
+                if self.mode == "draw" and button.name == "quiz":
+                    self.loadConstellation(self.quizzes[0])
+                    self.mode = button.name
+                elif self.mode == "quiz":
+                    self.mode = "draw"
             elif button.name == "erase":
                 if self.drawMode == "draw":
                     self.drawMode = "erase"
@@ -677,8 +722,9 @@ class Planetarium(Framework):
                 return 1
             elif button.name == "savefile":
                 (left, up) = self.screenPos
-                data = (self.date.strftime("%Y %m %d %H %M")+"\n"+str(left)+"."+
-                        str(up)+"."+str(self.shift)+"." + self.cityName + "\n")
+                data = (self.date.strftime("%Y %m %d %H %M")+"\n"+str(int(left))
+                        +"."+str(int(up))+"."+str(self.shift)+"." + 
+                        self.cityName + "\n")
                 for action in self.actions:
                     (typeof, line) = action
                     data += typeof + "."+ str(line)+"\n"
@@ -847,6 +893,28 @@ class Planetarium(Framework):
                 if isinstance(button, ModeButton) and button.name == "return": 
                     self.mode = "draw"
 
+    def checkQuizButtons(self, x, y):
+        for button in self.quizButtons:
+            if super(type(button), button).onClick(x, y):
+                if isinstance(button, HintButton) and button.name == "hint":
+                    #if box is check: click again to move to next const
+                    result = self.checkAnswer()
+                    hint.setText(result)
+                    self.hint.display() 
+
+    def checkHint(x, y):
+        clicked = self.hint.onClick(x, y)
+        if clicked and self.hint.text == "Correct!":
+            self.constindex+=1
+            if self.constindex >= len(self.quizzes):
+                self.hint.setText("You have completed the quiz!")
+                self.hint.display() 
+            else:
+                self.loadConstellation(self.quizzes[self.constindex])
+
+
+
+
 ################################# base functions ##############################
 
     def mousePressed(self, x, y):
@@ -861,13 +929,17 @@ class Planetarium(Framework):
             self.optionsMousePressed(x, y)
         #In main screen:
         #check all buttons
-        elif self.mode == "draw":
+        elif self.mode == "draw" or self.mode == "quiz":
+            if self.mode == "quiz": 
+                self.checkHint(x, y)
+                self.checkQuizButtons(x, y)
             check = self.checkDrawButtons(x, y)
             if check == 1: return 
             #check the nav buttons
             self.checkNavButtons(x, y)
             self.checkStarsDrawMode(x, y)
             self.checkLines(x, y)
+
 
         elif self.mode == "main":
             #check all buttons
@@ -928,7 +1000,6 @@ class Planetarium(Framework):
             self.updateScreenPos(-self.shiftChange)
 
     def timerFired(self, dt):
-
         if self.mode == "quit":
             pygame.quit()
 
@@ -978,12 +1049,14 @@ class Planetarium(Framework):
             self.drawOptions(screen)
         elif self.mode == "help":
             self.drawHelp(screen)
-        else: #main, draw
+        else: #main, draw, quiz
             self.drawStars(screen)
             self.drawButtons(screen)
-            if self.mode == "draw":
+            if self.mode == "draw" or self.mode == "quiz":
                 self.drawLines(screen)
                 self.drawDrawButtons(screen)
+                if self.mode == "quiz": 
+                    self.drawQuiz(screen)
         self.screen = screen
 
     def drawSplash(self, screen):
@@ -1078,15 +1151,33 @@ class Planetarium(Framework):
 
     def drawDrawButtons(self, screen):
         for button in self.drawModeButtons:
+            font = self.font
             if self.drawMode == "erase" and button.name == "erase":
                 button.drawSelected(screen)
-            button.draw(screen, self.font)
+            if button.name == "quiz":
+                font = self.bigFont
+                if self.mode == "quiz": button.color = self.GREEN
+                else: button.color = self.PINK
+            button.draw(screen, font)
+
 
     def drawHelp(self, screen):
         screen.blit(self.helpScreen, (0,0))
         for button in self.helpButtons:
             button.draw(screen, self.font)
 
+    def drawQuiz(self, screen):
+        const=""
+        if self.const == "bigdipper":
+            const = "The Big Dipper!"
+        elif self.const == "littledipper":
+            const = "The Little Dipper!"
+        title = self.font.render("Draw: " + const, 1, self.WHITE)
+        screen.blit(screen, 
+                    (self.width//2 - self.font.size("Draw: "+const)[0]//2, 0))
+        for button in self.quizButtons:
+            button.draw(screen, self.font)
+        self.hint.draw(screen, self.font)
 
 
 Planetarium().run()

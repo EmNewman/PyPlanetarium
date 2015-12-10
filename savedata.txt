@@ -1,0 +1,5 @@
+2015 12 09 14 47
+1100.1200.1400.Pittsburgh
+draw.Boo 33|Boo Gamma-27
+draw.Boo Gamma-27|Boo 40
+draw.Boo 40|Boo 33
