@@ -110,10 +110,16 @@ class Line(object):
         self.width = 2
 
     def __hash__(self):
-        return hash((self.star1.name, self.star2.name))
+        if self.star2 != None:
+            return hash((self.star1.name, self.star2.name)) 
+        else:
+            return hash((self.star1.name, None))
 
     def __repr__(self):
-        return self.star1.name+"|"+self.star2.name
+        if self.star2 != None:
+            return self.star1.name+"|"+self.star2.name
+        else:
+            return self.star1.name+"|"+"None"
 
     def __eq__(self, other):
         return (isinstance(other, Line) and other.star1 == self.star1 
@@ -571,6 +577,7 @@ class Planetarium(Framework):
     def loadConstellation(self, const):
         folder = "const" #where all constellations are
         self.unpackFile(const+".txt", folder)
+        print "*"+ str(self.screenPos)
         self.constLines = copy.copy(self.lines)
         #create set of stars in constellation
         self.constStars = set()
@@ -582,11 +589,12 @@ class Planetarium(Framework):
 
     def checkAnswer(self):
         lines = set(self.lines) #gets rid of duplicates
+        print lines
         constLines = set(self.constLines)
         stars = set()
         for line in self.lines:
-            stars.add(self.line.star1)
-            stars.add(self.line.star2)
+            stars.add(line.star1)
+            stars.add(line.star2)
         diff = len(self.constStars) - len(stars)
         linediff = len(constLines) - len(lines)
         if diff > 0 or (diff==0 and stars!=self.constStars): 
@@ -899,10 +907,10 @@ class Planetarium(Framework):
                 if isinstance(button, HintButton) and button.name == "hint":
                     #if box is check: click again to move to next const
                     result = self.checkAnswer()
-                    hint.setText(result)
+                    self.hint.setText(result)
                     self.hint.display() 
 
-    def checkHint(x, y):
+    def checkHint(self, x, y):
         clicked = self.hint.onClick(x, y)
         if clicked and self.hint.text == "Correct!":
             self.constindex+=1
@@ -957,7 +965,7 @@ class Planetarium(Framework):
                 self.lines[-1].updateEndPoint(x, y)
 
     def mouseDrag(self, x, y):
-        if self.mode == "main" or self.mode == "draw":
+        if self.mode == "main" or self.mode == "draw" or self.mode == "quiz":
             if self.justClicked == False:
                 self.justClicked = True
                 (self.mouseStartX, self.mouseStartY) = (x, y)
@@ -1011,10 +1019,11 @@ class Planetarium(Framework):
                 newHour = self.date.hour+1
             self.date = self.date.replace(self.date.year, self.date.month, 
                             self.date.day, newHour%23, newMinute)
+            self.updateCity()
 
         elif self.inRealTime:
             self.date = datetime.datetime.now()
-
+            self.updateCity()
 
         if self.mode == "draw":
             for line in self.lines:
@@ -1034,7 +1043,7 @@ class Planetarium(Framework):
                 if self.selectedButton != None:
                     self.updateDate() 
 
-        self.updateCity()
+        
         self.calculateStars()
 
 
@@ -1049,14 +1058,20 @@ class Planetarium(Framework):
             self.drawOptions(screen)
         elif self.mode == "help":
             self.drawHelp(screen)
-        else: #main, draw, quiz
+        elif self.mode == "main":
             self.drawStars(screen)
             self.drawButtons(screen)
-            if self.mode == "draw" or self.mode == "quiz":
-                self.drawLines(screen)
-                self.drawDrawButtons(screen)
-                if self.mode == "quiz": 
-                    self.drawQuiz(screen)
+        elif self.mode == "draw":
+            self.drawStars(screen)
+            self.drawButtons(screen)
+            self.drawLines(screen)
+            self.drawDrawButtons(screen)
+        elif self.mode == "quiz":
+            self.drawStars(screen)
+            self.drawButtons(screen)
+            self.drawLines(screen)
+            self.drawDrawButtons(screen)
+            self.drawQuiz(screen)
         self.screen = screen
 
     def drawSplash(self, screen):
