@@ -397,7 +397,7 @@ class DrawButton(Button):
 
 
 class Planetarium(Framework):
-    def __init__(self, width=600, height=400, fps=50, title="PyPlanetarium"):
+    def __init__(self, width=1000, height=666, fps=50, title="PyPlanetarium"):
         super(Planetarium, self).__init__(width, height, fps, title)
         self.initBasics() 
 
@@ -474,7 +474,7 @@ class Planetarium(Framework):
         self.splashScreen = pygame.image.load(os.path.join("screens",
                                                         "splash.png"))
         self.splashButtons = [
-        ModeButton("GO", self.width//2, self.height*6//8, self.GREEN2, 
+        ModeButton("GO", self.width//2, self.height*7//8, self.GREEN2, 
                     self.bigFont.size("GO")[0],  self.bigFont.size("GO")[1])
         ]
         self.inFastTime = True
@@ -807,8 +807,8 @@ class Planetarium(Framework):
                     if lines == 1: 
                         print ("File not found! Make sure it is named "+ 
                                                         "savedata.txt")
-                    #TODO: file not loaded popup?
-                    #TODO: popup saying loaded correctly?
+                        #TODO: file not loaded popup?
+                        #TODO: popup saying loaded correctly?
                 except:
                     print "Not a valid file!"
 
@@ -838,10 +838,10 @@ class Planetarium(Framework):
                         self.lines.append(Line(star, self.screenPos))
                         self.onLine = True
                     else: #is on a line
-                        if star != self.lines[-1].star1:
+                        if star != self.lines[-1].star1 and self.lines!=[]:
                             self.lines[-1].setEnd(star, self.screenPos)
                             self.actions.append(("draw", self.lines[-1]))
-                        else:
+                        elif self.lines!=[]:
                             self.lines.pop(-1)
                         self.onLine = False
                     return 1
@@ -913,6 +913,7 @@ class Planetarium(Framework):
                 self.mode = name
                 if self.mode == "draw": 
                     self.inRealTime = False
+                    self.infostar = None
                 elif self.mode == "options":
                     self.updateOptionButtons()
                 return
@@ -960,6 +961,7 @@ class Planetarium(Framework):
             elif self.constindex > len(self.quizzes):
                 self.hint.setText("")
                 self.mode = "draw"
+                self.infostar = None
                 self.resetDrawMode()
             else:
                 self.loadConstellation(self.quizzes[self.constindex])
@@ -1031,7 +1033,9 @@ class Planetarium(Framework):
             elif keyCode == pygame.K_DOWN:
                 val = self.selectedButton.down()
             if val != None: 
-                if val == "Pittsburgh": self.city = self.pgh
+                if val == "Pittsburgh": 
+                    self.city = self.pgh
+                    self.cityName = val
                 else: 
                     self.city = ephem.city(val)
                     self.cityName = val

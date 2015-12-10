@@ -1,6 +1,6 @@
-2015 12 10 02 17
-1100.1200.1400.Pittsburgh
-draw.And 56|Almach
-draw.Almach|And Chi-52
-draw.And Chi-52|Tri Epsilon-3
-draw.Tri Epsilon-3|And Tau-53
+2015 07 16 04 09
+1552.991.1400.Pittsburgh
+draw.Dra Xi-32|Dra Zeta-22
+draw.Dra Zeta-22|Dra Upsilo-52
+draw.Dra Upsilo-52|Dra 39
+draw.Dra Xi-32|Dra 39
