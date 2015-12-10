@@ -3,6 +3,8 @@ from __future__ import division
 """
 Emily Newman's TP F15
 
+Compatible with Python 2.7
+
 Using Pygame and PyEphem libraries
 Uses the Yale Bright Star Catalog, as well as PyEphem's star catalog
 
@@ -79,6 +81,7 @@ class Star(object):
         self.body.compute(ref)
         self.r = int(self.body.mag)
         if self.body.alt < 0: #below horizon
+            self.screenPos = None
             return #do nothing, screenPos remains None
         phi = self.body.alt + math.pi/2
         theta = 2*math.pi - self.body.az
@@ -396,37 +399,9 @@ class DrawButton(Button):
 class Planetarium(Framework):
     def __init__(self, width=600, height=400, fps=50, title="PyPlanetarium"):
         super(Planetarium, self).__init__(width, height, fps, title)
-        self.title = "PyPlanetarium"
-        self.bgColor = self.BLACK
-        self.shift = 1400 #changes with zooming
-        #full screen width and height is self.shift*2 at any time
-        self.margin = 10
-        self.minZoom = 300
-        self.maxZoom = 10000
-        self.shiftChange = 10
+        self.initBasics() 
 
-        (self.MIN_ALT, self.MAX_ALT) = (0, math.pi/2)
-        (self.MIN_AZ, self.MAX_AZ) = (0, 2*math.pi) #radians
-        # upper left corner of screen in terms of sky
-        # starts w/ center of screen being (0,0) of sky
-        self.screenPos = (self.shift-self.width//2, self.shift-self.height//2)
-        self.date = datetime.datetime.now() #always Datetime form
-        self.starList = [ ]
-        self.cities = [city for city in ephem.cities._city_data]
-        self.cities.sort()
-        self.initPittsburgh()
-        self.city = self.pgh
-        self.cityName = "Pittsburgh"
-        self.initStars()
-        #read in more stars!
-        yaleCatalog = self.readInDB("ybs.edb")
-        self.starList += yaleCatalog #using Yale's Bright Star catalog
-        self.LIGHT_BLUE = (114, 164, 255) 
-        self.RED = (208, 9, 9)
-        self.GREEN2 = (0, 204, 0)
-        self.PINK = (255, 102, 255)
-        self.YELLOW = (255, 255, 0)
-
+        self.initColors()
         self.initButtons()
         self.initOptionsMode()
 
@@ -449,6 +424,39 @@ class Planetarium(Framework):
 
 ################################# INIT FUNCTIONS ##############################
 
+    def initBasics(self):
+        self.title = "PyPlanetarium"
+        self.bgColor = self.BLACK
+        self.shift = 1400 #changes with zooming
+        #full screen width and height is self.shift*2 at any time
+        self.margin = 10
+        self.minZoom = 500
+        self.maxZoom = 10000
+        self.shiftChange = 10
+
+        (self.MIN_ALT, self.MAX_ALT) = (0, math.pi/2)
+        (self.MIN_AZ, self.MAX_AZ) = (0, 2*math.pi) #radians
+        # upper left corner of screen in terms of sky
+        # starts w/ center of screen being (0,0) of sky
+        self.screenPos = (self.shift-self.width//2, self.shift-self.height//2)
+        self.date = datetime.datetime.now() #always Datetime form
+        self.starList = [ ]
+        self.cities = [city for city in ephem.cities._city_data]
+        self.cities.sort()
+        self.initPittsburgh()
+        self.city = self.pgh
+        self.cityName = "Pittsburgh"
+        self.initStars()
+        #read in more stars!
+        yaleCatalog = self.readInDB("ybs.edb")
+        self.starList += yaleCatalog #using Yale's Bright Star catalog
+
+    def initColors(self):
+        self.LIGHT_BLUE = (114, 164, 255) 
+        self.RED = (208, 9, 9)
+        self.GREEN2 = (0, 204, 0)
+        self.PINK = (255, 102, 255)
+        self.YELLOW = (255, 255, 0)
 
     def initQuiz(self):
         self.hint = Hint(self.width//2-175, self.height//2-65, "", 370, 120)
