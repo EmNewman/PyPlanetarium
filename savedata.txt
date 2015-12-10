@@ -1,6 +1,0 @@
-2015 07 16 04 09
-1552.991.1400.Pittsburgh
-draw.Dra Xi-32|Dra Zeta-22
-draw.Dra Zeta-22|Dra Upsilo-52
-draw.Dra Upsilo-52|Dra 39
-draw.Dra Xi-32|Dra 39

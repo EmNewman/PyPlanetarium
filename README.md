@@ -3,7 +3,9 @@
 ##By Emily Newman
 ##15-112 Term Project, Fall Semester 2015
 
-######“oh my God! – it’s full of stars!”
+>“oh my God! – it’s full of stars!”
+######     Dave Bowman
+######     Arthur C. Clarke, *2001: A Space Odyssey*
 
 PyPlanetarium takes real star data based on a location and date/time that 
 the user sets, and draws the stars in an interactive environment that the user 
@@ -14,9 +16,12 @@ can receive hints on what to draw next.
 The entire project can be found on:
 http://github.com/EmNewman/PyPlanetarium
 
+Video describing the project can be found here:
+https://www.youtube.com/watch?v=tWK_cVLP7qI 
+
 ###Package Requirements:
 
-**Compatible with Python 2.7 ONLY
+**Compatible with Python 2.7 ONLY**
 
 ####PyEphem: 
 If you have the ability to use pip (generally, for Mac OS and Linux users):
