@@ -41,7 +41,6 @@ def writeFile(filename, contents, mode="wt"):    # wt = "write text"
     with open(filename, mode) as fout:
         fout.write(contents)
 
-
 def pointInBox(point, boxCoords): #from my hw8a.py
     (x, y) = point
     (boxLeft, boxTop, boxRight, boxBot) = boxCoords
@@ -95,7 +94,6 @@ class Star(object):
         #     print (int(x - left), int(y - up))
         return (int(x - left), int(y - up))
 
-
 class Line(object):
     def __init__(self, startStar, screenPos, endStar=None):
         self.screenPos = screenPos
@@ -111,9 +109,9 @@ class Line(object):
 
     def __hash__(self):
         if self.star2 != None:
-            return hash((self.star1.name, self.star2.name)) 
+            return hash(self.star1.name) + hash(self.star2.name)
         else:
-            return hash((self.star1.name, None))
+            return hash(self.star1.name) + hash("None")
 
     def __repr__(self):
         if self.star2 != None:
@@ -122,8 +120,9 @@ class Line(object):
             return self.star1.name+"|"+"None"
 
     def __eq__(self, other):
-        return (isinstance(other, Line) and other.star1 == self.star1 
-                            and other.star2 == self.star2)
+        return (isinstance(other, Line) and (other.star1 == self.star1 
+                and other.star2 == self.star2) or (other.star1 == self.star2
+                and other.star2 == self.star1))
 
     def onClick(self, x, y):
         #point distance from a line equation
@@ -180,6 +179,8 @@ class Hint(object):
         if (pointInBox((x,y), (self.x, self.y, self.x+self.width, 
                                             self.y+self.height))):
             self.show = False
+            return True
+        return False
 
     def draw(self, screen, font):
         if self.show:
@@ -194,8 +195,6 @@ class Hint(object):
 
     def setText(self, text):
         self.text = text
-
-
 
 class Button(object):
     def __init__(self, name, x, y, color, width=25, height=15):
@@ -228,7 +227,6 @@ class HintButton(Button):
     def draw(self, screen, font):
         screen.blit(self.icon, (self.x, self.y))
         
-
 class ModeButton(Button):
     def __init__(self, name, x, y, color, width=25, height=15):
         super(ModeButton, self).__init__(name, x, y, color, width, height)
@@ -246,7 +244,6 @@ class ModeButton(Button):
                                             self.y+self.height)):
             return self.name
         return None
-
 
 class TimeButton(Button):
     def __init__(self, name, x, y, color, width=25, height=15):
@@ -293,7 +290,6 @@ class TimeButton(Button):
         text = font.render(str(self.timeVal), 1, self.BLACK)
         screen.blit(text, (self.x, self.y))
 
-
 class NowButton(Button):
     def draw(self, screen, font):
         word = self.name[0].upper() + self.name[1:]
@@ -305,7 +301,6 @@ class NowButton(Button):
         if pointInBox((x,y), (self.x, self.y, self.x+self.width, 
                                             self.y+self.height)):
             return datetime.datetime.now()
-
 
 class ToggleButton(Button):
     def __init__(self, name, x, y, color, width=25, height=15):
@@ -329,7 +324,6 @@ class ToggleButton(Button):
         super(ToggleButton, self).draw(screen, font)
         text = font.render(word, 1, self.BLACK)
         screen.blit(text, (self.x, self.y))
-
 
 class ListButton(Button):
     def __init__(self,  name, x, y, color, data, width=25, height=15):
@@ -445,10 +439,12 @@ class Planetarium(Framework):
         self.initHelp()
         self.initQuiz()
 
+
 ################################# INIT FUNCTIONS ##############################
 
+
     def initQuiz(self):
-        self.hint = Hint(self.width//2-100, self.height//2-50, "", 200, 100)
+        self.hint = Hint(self.width//2-175, self.height//2-60, "", 350, 120)
         self.correctMsg = "Correct!"
         size = 50
         self.quizButtons = [
@@ -502,12 +498,12 @@ class Planetarium(Framework):
         ]
         self.selectedButton = None
 
-
     def initDrawMode(self):
         size = 50
         self.drawModeButtons = [ 
             ModeButton("quiz", 0, 0, self.PINK),
-            ModeButton("help", self.width-125, 0, self.LIGHT_BLUE),
+            ModeButton("help", self.width-self.font.size("Options")[0]-
+                            self.font.size("Draw")[0]-60, 0, self.LIGHT_BLUE),
             DrawButton("erase", 0, self.height//8, self.YELLOW, size, size),
             DrawButton("undo", 0, self.height*2//8, self.YELLOW, size, size),
             DrawButton("redo", 0, self.height*3//8, self.YELLOW, size, size),
@@ -533,13 +529,16 @@ class Planetarium(Framework):
             if starName == "": continue #not a star
             self.starList.append(Star(starName, ephem.star(starName)))
 
-
     def initPittsburgh(self):
         self.pgh = ephem.Observer()
         self.pgh.lat = "40:26:26.3"
         self.pgh.long = "-79:59:45.20" 
         self.pgh.date = ephem.Date(self.date)
         self.cities.insert(0, "Pittsburgh")
+
+
+########################## LOAD FROM FILE FUNCTIONS ###########################
+
 
     def readInDB(self, path):
         #returns list of Star objects from all stars in DB
@@ -549,88 +548,9 @@ class Planetarium(Framework):
             if line.startswith("#") or line == "": continue
             line = line.strip()
             body = ephem.readdb(line)
+            if body.name == "Benetnasch": continue #duplicate of Alkaid
             starList.append(Star(body.name, body))
         return starList
-
-
-
-################################## STAR FUNCTIONS #############################
-
-
-    def calculateStars(self):
-        for star in self.starList:
-            star.calculate(self.city, self.shift)
-
-
-    def updateScreenPos(self, shiftChange, x=0, y=0):
-        (oldX, oldY) = self.screenPos
-        if shiftChange == 0:
-            self.screenPos = (x+oldX, y+oldY)
-        else:
-            oldShift = self.shift
-            self.shift += shiftChange
-            self.screenPos=(oldX*self.shift/oldShift, oldY*self.shift/oldShift)
-
-############################### quiz functions ##############################
-
-
-    def loadConstellation(self, const):
-        folder = "const" #where all constellations are
-        self.unpackFile(const+".txt", folder)
-        print "*"+ str(self.screenPos)
-        self.constLines = copy.copy(self.lines)
-        #create set of stars in constellation
-        self.constStars = set()
-        for line in self.constLines:
-            self.constStars.add(line.star1)
-            self.constStars.add(line.star2)
-        self.lines = [ ]
-        self.actions = [ ]
-
-    def checkAnswer(self):
-        lines = set(self.lines) #gets rid of duplicates
-        print lines
-        constLines = set(self.constLines)
-        stars = set()
-        for line in self.lines:
-            stars.add(line.star1)
-            stars.add(line.star2)
-        diff = len(self.constStars) - len(stars)
-        linediff = len(constLines) - len(lines)
-        if diff > 0 or (diff==0 and stars!=self.constStars): 
-            #not enough stars! find missing star
-            missingStars = self.constStars - stars
-            #get stars in constellation but not in drawing
-            hintStar = missingStars.pop()
-            hinttext = "Hint: You are missing " + str(hintStar)
-        elif diff < 0: #too many stars! find the extra star
-            extraStars = stars - self.constStars
-            #get stars in drawing that arent in constellation
-            hintStar = extraStars.pop()
-            hinttext = "Hint: "+str(hintStar)+" does not belong!"
-        elif linediff > 0 or (diff==0 and lines!=constLines):
-            #too many lines/lines where they shouldn't belong
-            wrongLines = lines - constLines
-            #get the lines in drawing not in constellations
-            hintLine = wrongLines.pop()
-            hinttext = ("Hint: " +str(star1)+" and "+str(star2)+"shouldn't be" 
-                                                        +" connected!")
-        elif linediff < 0:
-            #not enough lines! find the missing line
-            missingLines = constLines - lines
-            hintLine = missingLines.pop()
-            star1, star2 = hintLine.star1, hintLine.star2
-            hinttext = ("Hint: " +str(star1)+" and "+str(star2)+"should be" 
-                                                        +" connected!")
-        else:
-            hinttext = self.correctMsg
-        return hinttext
-
-
-
-########################### draw mode functions ##############################
-
-
 
     def unpackFile(self, source="savedata.txt", folder=""):
         directory = os.getcwd()
@@ -684,17 +604,146 @@ class Planetarium(Framework):
         self.lines = copy.copy(lines)
         self.actions = copy.copy(actions)
 
+    def loadConstellation(self, const):
+        self.const = const
+        folder = "const" #where all constellations are
+        self.unpackFile(const+".txt", folder)
+        print "*"+ str(self.screenPos)
+        self.constLines = copy.copy(self.lines)
+        #create set of stars in constellation
+        self.constStars = set()
+        for line in self.constLines:
+            self.constStars.add(line.star1)
+            self.constStars.add(line.star2)
+        self.lines = [ ]
+        self.actions = [ ]
+
+
+################################ UPDATE FUNCTIONS #############################
+
+
+    def calculateStars(self):
+        for star in self.starList:
+            star.calculate(self.city, self.shift)
+
+    def updateScreenPos(self, shiftChange, x=0, y=0):
+        (oldX, oldY) = self.screenPos
+        if shiftChange == 0:
+            self.screenPos = (x+oldX, y+oldY)
+        else:
+            oldShift = self.shift
+            self.shift += shiftChange
+            self.screenPos=(oldX*self.shift/oldShift, oldY*self.shift/oldShift)
+
+    def updateDate(self):
+        yr = self.date.year
+        mon = self.date.month
+        day = self.date.day
+        hr = self.date.hour
+        mi = self.date.minute
+        for button in self.optionsButtons:
+            if button.name == "year":
+                yr = button.getTime()
+            elif button.name == "month":
+                mon = button.getTime()
+            elif button.name == "day":
+                day = button.getTime()
+            elif button.name == "hour":
+                hr = button.getTime()
+            elif button.name == "minute":
+                mi = button.getTime()
+        self.date = self.date.replace(yr, mon, day, hr, mi)
+
+    def updateCity(self):
+        self.city.date = ephem.Date(self.date)
+        # self.city.epoch = self.city.date
+
+    def updateOptionButtons(self):
+        for button in self.optionsButtons:
+            if button.name == "year":
+                button.setTimeVal(self.date.year)
+            elif button.name == "month":
+                button.setTimeVal(self.date.month)
+            elif button.name == "day":
+                button.setTimeVal(self.date.day)
+            elif button.name == "hour":
+                button.setTimeVal(self.date.hour)
+            elif button.name == "minute":
+                button.setTimeVal(self.date.minute)
+
+    def resetTimeButtonColors(self):
+        for button in self.optionsButtons:
+            if isinstance(button, TimeButton) or isinstance(button, ListButton):
+                button.color = self.WHITE
+        if self.selectedButton != None:
+            self.selectedButton.color = self.YELLOW
+
+    def resetDrawMode(self):
+        self.date = datetime.datetime.now()
+        self.city = self.pgh
+        self.screenPos = (self.shift-self.width//2, self.shift-self.height//2)
+
+
+############################### quiz functions ##############################
+
+
+    def checkAnswer(self):
+        lines = set(self.lines) #gets rid of duplicates
+        print lines
+        constLines = set(self.constLines)
+        stars = set()
+        for line in self.lines:
+            stars.add(line.star1)
+            stars.add(line.star2)
+        diff = len(self.constStars) - len(stars)
+        linediff = len(constLines) - len(lines)
+        if diff > 0 or (diff==0 and stars!=self.constStars): 
+            #not enough stars! find missing star
+            missingStars = self.constStars - stars
+            #get stars in constellation but not in drawing
+            hintStar = missingStars.pop()
+            hinttext = "Hint: You are missing " + str(hintStar)
+        elif diff < 0: #too many stars! find the extra star
+            extraStars = stars - self.constStars
+            #get stars in drawing that arent in constellation
+            hintStar = extraStars.pop()
+            hinttext = "Hint: "+str(hintStar)+" does not belong!"
+        elif linediff < 0 or (linediff==0 and lines!=constLines):
+            #too many lines/lines where they shouldn't belong
+            wrongLines = lines - constLines
+            #get the lines in drawing not in constellations
+            hintLine = wrongLines.pop()
+            hinttext = ("Hint: " +hintLine.star1.name+" and "+
+                    hintLine.star2.name+" shouldn't be connected!")
+        elif linediff > 0:
+            #not enough lines! find the missing line
+            missingLines = constLines - lines
+            hintLine = missingLines.pop()
+            star1, star2 = hintLine.star1, hintLine.star2
+            hinttext = ("Hint: " +str(star1)+" and "+str(star2)+"should be" 
+                                                        +" connected!")
+        else:
+            hinttext = self.correctMsg
+        return hinttext
+
+
+########################### CHECK FUNCTIONS ##############################
+
+
     def checkDrawButtons(self, x, y):
         for button in self.drawModeButtons:
             #undo, redo, erase, clear, save
             if button.onClick(x, y) == None: continue
             self.selectedDrawButton = button
             if isinstance(button, ModeButton):
+                self.lastMode = self.mode
                 if self.mode == "draw" and button.name == "quiz":
                     self.loadConstellation(self.quizzes[0])
                     self.mode = button.name
-                elif self.mode == "quiz":
+                elif self.mode == "quiz" and button.name == "quiz":
                     self.mode = "draw"
+                else:
+                    self.mode = button.name
             elif button.name == "erase":
                 if self.drawMode == "draw":
                     self.drawMode = "erase"
@@ -749,7 +798,6 @@ class Planetarium(Framework):
                 except:
                     print "Not a valid file!"
 
-
     def checkLines(self, x, y):
         if self.drawMode == "erase":
             erasedLine = None
@@ -769,26 +817,53 @@ class Planetarium(Framework):
             for star in self.starList:
                 if star.displayPos(left,up) == None: continue #not on screen
                 (cx, cy) = star.displayPos(left,up)
-                (width, height) = self.font.size(star.name)
-                if (pointInCircle((x,y), (cx, cy), star.r)
-                            or pointInBox((x,y), (cx, cy, cx+width, cy+height))):
-                        self.selectedDrawButton = None
-                        if self.onLine == False:
-                            self.lines.append(Line(star, self.screenPos))
-                            self.onLine = True
-                            return
-                        else: #is on a line
+                (width, height) = self.smallFont.size(star.name)
+                if pointInCircle((x,y), (cx, cy), star.r):
+                    print "clicked in star"
+                    print self.onLine
+                    self.selectedDrawButton = None
+                    if self.onLine == False:
+                        self.lines.append(Line(star, self.screenPos))
+                        self.onLine = True
+                    else: #is on a line
+                        if star != self.lines[-1].star1:
                             self.lines[-1].setEnd(star, self.screenPos)
                             self.actions.append(("draw", self.lines[-1]))
-                            self.onLine = False
-                            return
+                        else:
+                            self.lines.pop(-1)
+                        self.onLine = False
+                    return 1
+            check = self.checkStarLabelsDrawMode(x, y)  
+            if check == 1: return 1
             if self.onLine and self.selectedDrawButton==None: 
                 if self.lines != [ ]: self.lines.pop()
                 self.onLine = False
-                return
+                return 1   
 
-############################# helper functions ################################
-
+    def checkStarLabelsDrawMode(self, x, y):
+        (left, up) = self.screenPos
+        if self.drawMode == "draw":
+            for star in self.starList:
+                if star.displayPos(left,up) == None: continue #not on screen
+                (cx, cy) = star.displayPos(left,up)
+                (width, height) = self.smallFont.size(star.name)
+                if pointInBox((x,y),(cx, cy, cx+width, cy+height)):
+                    print "clicked in box"
+                    print self.onLine
+                    self.selectedDrawButton = None
+                    if self.onLine == False:
+                        self.lines.append(Line(star, self.screenPos))
+                        self.onLine = True
+                        print self.lines
+                        return 1
+                    else: #is on a line
+                        if star != self.lines[-1].star1:
+                            self.lines[-1].setEnd(star, self.screenPos)
+                            self.actions.append(("draw", self.lines[-1]))
+                        else:
+                            self.lines.pop(-1)
+                        self.onLine = False
+                        return 1
 
     def optionsMousePressed(self, x, y):
         (left, up) = self.screenPos
@@ -807,57 +882,18 @@ class Planetarium(Framework):
                         self.mode = val
                 else: 
                     self.selectedButton = val
-   
-
-    def updateDate(self):
-        yr = self.date.year
-        mon = self.date.month
-        day = self.date.day
-        hr = self.date.hour
-        mi = self.date.minute
-        for button in self.optionsButtons:
-            if button.name == "year":
-                yr = button.getTime()
-            elif button.name == "month":
-                mon = button.getTime()
-            elif button.name == "day":
-                day = button.getTime()
-            elif button.name == "hour":
-                hr = button.getTime()
-            elif button.name == "minute":
-                mi = button.getTime()
-        self.date = self.date.replace(yr, mon, day, hr, mi)
-
-    def updateCity(self):
-        self.city.date = ephem.Date(self.date)
-        # self.city.epoch = self.city.date
-
-    def updateOptionButtons(self):
-        for button in self.optionsButtons:
-            if button.name == "year":
-                button.setTimeVal(self.date.year)
-            elif button.name == "month":
-                button.setTimeVal(self.date.month)
-            elif button.name == "day":
-                button.setTimeVal(self.date.day)
-            elif button.name == "hour":
-                button.setTimeVal(self.date.hour)
-            elif button.name == "minute":
-                button.setTimeVal(self.date.minute)
-
 
     def checkStars(self, x, y):
         (left, up) = self.screenPos
         for star in self.starList:
             if star.displayPos(left,up) == None: continue #not on screen
             (cx, cy) = star.displayPos(left,up)
-            (width, height) = self.font.size(star.name)
+            (width, height) = self.smallFont.size(star.name)
             if (pointInCircle((x,y), (cx, cy), star.r)
                         or pointInBox((x,y), (cx, cy, cx+width, cy+height))):
                 self.infostar = star
                 return #ensures only one star info shown
         self.infostar = None
-
 
     def checkNavButtons(self, x, y):
         (left, up) = self.screenPos
@@ -870,19 +906,11 @@ class Planetarium(Framework):
                     self.inRealTime = False
                 elif self.mode == "options":
                     self.updateOptionButtons()
+                return
             elif name != None and self.mode == name: 
                 self.mode = "main"
                 button.color = self.LIGHT_BLUE
-
-
-    def resetTimeButtonColors(self):
-        for button in self.optionsButtons:
-            if isinstance(button, TimeButton) or isinstance(button, ListButton):
-                button.color = self.WHITE
-
-        if self.selectedButton != None:
-            self.selectedButton.color = self.YELLOW
-
+                return
 
     def legalScreenPos(self, x, y):
         return (0-self.margin <= x <= self.shift*2-self.width+2*self.margin
@@ -898,8 +926,8 @@ class Planetarium(Framework):
     def checkHelpButtons(self, x, y):
         for button in self.helpButtons:
             if super(type(button), button).onClick(x, y):
-                if isinstance(button, ModeButton) and button.name == "return": 
-                    self.mode = "draw"
+                if isinstance(button, ModeButton) and button.name == "return":
+                    self.mode = self.lastMode
 
     def checkQuizButtons(self, x, y):
         for button in self.quizButtons:
@@ -912,21 +940,25 @@ class Planetarium(Framework):
 
     def checkHint(self, x, y):
         clicked = self.hint.onClick(x, y)
-        if clicked and self.hint.text == "Correct!":
+        if (clicked and (self.hint.text == "Correct!" or 
+                    self.hint.text == "You have completed the quiz!")):
             self.constindex+=1
-            if self.constindex >= len(self.quizzes):
+            self.hint.text = ""
+            if self.constindex == len(self.quizzes):
                 self.hint.setText("You have completed the quiz!")
-                self.hint.display() 
+                self.hint.display(True)
+            elif self.constindex > len(self.quizzes):
+                self.hint.setText("")
+                self.mode = "draw"
+                self.resetDrawMode()
             else:
                 self.loadConstellation(self.quizzes[self.constindex])
 
 
+################################# BASE FUNCTIONS ##############################
 
-
-################################# base functions ##############################
 
     def mousePressed(self, x, y):
-        
         #Splash screen
         if self.mode == "splash":
             self.checkSplashButtons(x, y)
@@ -944,14 +976,17 @@ class Planetarium(Framework):
             check = self.checkDrawButtons(x, y)
             if check == 1: return 
             #check the nav buttons
-            self.checkNavButtons(x, y)
-            self.checkStarsDrawMode(x, y)
+            check = self.checkNavButtons(x, y)
+            if check == 1: return
+            check = self.checkStarsDrawMode(x, y)
+            if check==1: return
             self.checkLines(x, y)
 
 
         elif self.mode == "main":
             #check all buttons
-            self.checkNavButtons(x, y)
+            check = self.checkNavButtons(x, y)
+            if check == 1: return
             #check all stars
             self.checkStars(x, y)
 
@@ -1025,7 +1060,7 @@ class Planetarium(Framework):
             self.date = datetime.datetime.now()
             self.updateCity()
 
-        if self.mode == "draw":
+        if self.mode == "draw" or self.mode == "quiz":
             for line in self.lines:
                 if line.star2 != None:
                     line.updateLine(self.screenPos) 
@@ -1047,7 +1082,6 @@ class Planetarium(Framework):
         self.calculateStars()
 
 
-
 ######################## REDRAW FUNCTIONS ######################################
 
 
@@ -1063,13 +1097,13 @@ class Planetarium(Framework):
             self.drawButtons(screen)
         elif self.mode == "draw":
             self.drawStars(screen)
-            self.drawButtons(screen)
             self.drawLines(screen)
+            self.drawButtons(screen)
             self.drawDrawButtons(screen)
         elif self.mode == "quiz":
             self.drawStars(screen)
-            self.drawButtons(screen)
             self.drawLines(screen)
+            self.drawButtons(screen)
             self.drawDrawButtons(screen)
             self.drawQuiz(screen)
         self.screen = screen
@@ -1134,7 +1168,7 @@ class Planetarium(Framework):
                     if star.r < 0: continue
                     pygame.draw.circle(screen, self.WHITE, pos, star.r)
                     if drawNames:
-                        label = self.font.render(star.name, 1, self.GREEN)
+                        label = self.smallFont.render(star.name, 1, self.GREEN)
                         screen.blit(label, pos)
         if self.infostar == None: return        
         self.drawStarInfo(self.infostar, screen, self.infostar.displayPos(left, up))
@@ -1143,26 +1177,29 @@ class Planetarium(Framework):
         (x, y) = pos
         starObj = star.body 
         # RA will be the longest line
-        (width, height)=self.font.size("Right Ascension: " + str(starObj.a_ra))
+        (width, height) = self.smallFont.size(
+                                    "Right Ascension: " + str(starObj.a_ra))
         fontHeight = height
-        height *= 4 #four lines
         pygame.draw.rect(screen, self.BLACK, 
-                            pygame.Rect(x, y+fontHeight, width, height))
+                            pygame.Rect(x, y+fontHeight, width, height*4 + 8))
 
         # Magnitude
-        mag = self.font.render("Magnitude: " + str(starObj.mag), 1, self.WHITE)
-        screen.blit(mag, (x, y+self.fontSize+2))
+        mag = self.smallFont.render("Magnitude: " + str(starObj.mag), 1, 
+                                                                self.WHITE)
+        screen.blit(mag, (x, y+height+2))
         # RA
-        ra=self.font.render("Right Ascension: "+str(starObj.a_ra),1,self.WHITE)
-        screen.blit(ra, (x, y+2*self.fontSize+2))
+        ra=self.smallFont.render("Right Ascension: "+str(starObj.a_ra),1,
+                                                                    self.WHITE)
+        screen.blit(ra, (x, y+2*height+2))
         # Dec
-        dec = self.font.render("Declination: "+str(starObj.dec), 1, self.WHITE)
-        screen.blit(dec, (x, y+3*self.fontSize+2))
+        dec = self.smallFont.render("Declination: "+str(starObj.dec), 1, 
+                                                                    self.WHITE)
+        screen.blit(dec, (x, y+3*height+2))
         # Constellation - ephem.constellation(obj)[1] returns the name of
         # the constellation the star is within
-        const = self.font.render("Constellation: " +
+        const = self.smallFont.render("Constellation: " +
                         ephem.constellation(starObj)[1], 1, self.WHITE)
-        screen.blit(const, (x, y+4*self.fontSize+2))
+        screen.blit(const, (x, y+4*height+2))
 
     def drawDrawButtons(self, screen):
         for button in self.drawModeButtons:
@@ -1175,7 +1212,6 @@ class Planetarium(Framework):
                 else: button.color = self.PINK
             button.draw(screen, font)
 
-
     def drawHelp(self, screen):
         screen.blit(self.helpScreen, (0,0))
         for button in self.helpButtons:
@@ -1187,12 +1223,12 @@ class Planetarium(Framework):
             const = "The Big Dipper!"
         elif self.const == "littledipper":
             const = "The Little Dipper!"
-        title = self.font.render("Draw: " + const, 1, self.WHITE)
-        screen.blit(screen, 
-                    (self.width//2 - self.font.size("Draw: "+const)[0]//2, 0))
+        title = self.bigFont.render("Draw: " + const, 1, self.WHITE)
+        screen.blit(title, 
+                (self.width//2-50-self.bigFont.size("Draw: "+const)[0]//2, 0))
         for button in self.quizButtons:
             button.draw(screen, self.font)
-        self.hint.draw(screen, self.font)
+        self.hint.draw(screen, self.smallFont)
 
 
 Planetarium().run()

@@ -1,5 +1,6 @@
-2015 12 09 21 38
+2015 12 10 02 17
 1100.1200.1400.Pittsburgh
-draw.Cyg 61|Cyg Upsilo-66
-draw.Cyg Upsilo-66|Cyg 76
-draw.Cyg 76|Cyg 61
+draw.And 56|Almach
+draw.Almach|And Chi-52
+draw.And Chi-52|Tri Epsilon-3
+draw.Tri Epsilon-3|And Tau-53

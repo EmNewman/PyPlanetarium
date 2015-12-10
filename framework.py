@@ -65,8 +65,9 @@ class Framework(object):
         self.WHITE = (255, 255, 255)
         self.GREEN = (0, 255, 0)
         self.bgColor = self.WHITE
-        self.fontSize = 12
+        self.fontSize = 16
         pygame.init()
+        self.smallFont = pygame.font.SysFont("monospace", 12)
         self.font = pygame.font.SysFont("monospace", self.fontSize)
         self.bigFont = pygame.font.SysFont("monospace", 25, True)
 
